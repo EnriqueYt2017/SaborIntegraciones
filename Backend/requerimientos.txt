@@ -1,0 +1,2 @@
+npm install express oracledb cors dotenv
+npm install bcrypt jsonwebtoken dotenv
