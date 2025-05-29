@@ -10,24 +10,23 @@ function Home() {
     const [menuVisible, setMenuVisible] = useState(false);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        const userData = localStorage.getItem("user");
+useEffect(() => {
+    const userData = localStorage.getItem("user");
 
-        console.log("Datos en localStorage:", userData); // 🔎 Verifica qué está guardado
-
-        if (userData && userData !== "undefined" && userData !== "{}" && userData !== "null") { // ✅ Evita errores
-            try {
-                const parsedUser = JSON.parse(userData);
-                if (parsedUser && Object.keys(parsedUser).length > 0) {
-                    setUser(parsedUser);
-                }
-            } catch (error) {
-                console.error("Error al parsear usuario:", error);
+    if (userData && userData !== "undefined" && userData !== "{}" && userData !== "null") {
+        try {
+            const parsedUser = JSON.parse(userData);
+            if (parsedUser && Object.keys(parsedUser).length > 0) {
+                setUser(parsedUser);
+            } else {
+                navigate("/login"); // Redirige si el usuario es inválido
             }
-        } else {
-            console.warn("Usuario no encontrado en localStorage.");
+        } catch (error) {
+            console.error("Error al parsear usuario:", error);
+            navigate("/login"); // Redirige si hay error de parseo
         }
-    }, []);
+    }
+}, [navigate]);
     const cerrarSesion = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
@@ -37,6 +36,7 @@ function Home() {
 
     return (
         <div>
+            {/*Navbar */}
             <div className="containers">
                 <nav id="navbar-e" className="navbar bg-body-tertiary px-3">
                     <a href="#" className="navbar-brand">
@@ -55,7 +55,12 @@ function Home() {
                                 </button>
                                 <ul className={`dropdown-menu${menuVisible ? " show" : ""}`}>
                                     <li>
-                                        <a href="/perfil" className="dropdown-item">Ver perfil</a>
+                                        <button
+                                            className="dropdown-item"
+                                            onClick={() => navigate("/Perfil")}
+                                        >
+                                            Ver perfil
+                                        </button>
                                     </li>
                                     <li>
                                         <a href="#" className="dropdown-item">Ver más</a>
@@ -469,7 +474,7 @@ function Home() {
                         Enviar
                     </button>
                 </div>
-            )} 
+            )}
             <div>
 
             </div>

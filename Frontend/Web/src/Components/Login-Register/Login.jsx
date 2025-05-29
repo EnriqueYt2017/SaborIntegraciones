@@ -41,30 +41,129 @@ const handleSubmit = async (e) => {
     }
 };
   return (
-    <div className="containers">
-      <div className="row">
-        <div className="col-md-4">
-          <div className="padre">
-            <div className="card card-body shadow-lg">
-              <h2 className="text-center">Iniciar Sesión</h2>
-              <img src={ImageProfile} alt="" className="estilo-profile" />
-              <form onSubmit={handleSubmit}>
-                <input className="cajatexto" type="email" placeholder="Ingresar Correo" value={correo} onChange={(e) => setCorreo(e.target.value)} required />
-                <input className="cajatexto" type="password" placeholder="Ingresar Contraseña" value={pass} onChange={(e) => setPass(e.target.value)} required />
-                <button className="btnform" type="submit">Iniciar Sesión</button>
-              </form>
-              {error && <p style={{ color: "red" }}>{error}</p>}
-            </div>
+    <div className="login-container" style={{
+      minHeight: "100vh",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      background: "linear-gradient(120deg,rgb(101, 246, 145) 0%,rgb(133, 243, 253) 100%)"
+    }}>
+      <div className="login-card" style={{
+        display: "flex",
+        boxShadow: "0 8px 32px 0 rgba(31, 38, 135, 0.37)",
+        borderRadius: "20px",
+        overflow: "hidden",
+        background: "#fff",
+        maxWidth: "900px",
+        width: "100%"
+      }}>
+        <div className="login-form-section" style={{
+          flex: 1,
+          padding: "48px 32px",
+          display: "flex",
+          flexDirection: "column",
+          justifyContent: "center"
+        }}>
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <img src={ImageProfile} alt="" style={{ width: 70, marginBottom: 16 }} />
+            <h2 style={{ fontWeight: 700, color: "#f76d6d" }}>Iniciar Sesión</h2>
           </div>
+          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <input
+              className="cajatexto"
+              type="email"
+              placeholder="Correo electrónico"
+              value={correo}
+              onChange={(e) => setCorreo(e.target.value)}
+              required
+              style={{
+                padding: "12px",
+                borderRadius: "8px",
+                border: "1px solidrgb(133, 253, 189)",
+                outline: "none",
+                fontSize: "16px"
+              }}
+            />
+            <input
+              className="cajatexto"
+              type="password"
+              placeholder="Contraseña"
+              value={pass}
+              onChange={(e) => setPass(e.target.value)}
+              required
+              style={{
+                padding: "12px",
+                borderRadius: "8px",
+                border: "1px solidrgb(133, 253, 163)",
+                outline: "none",
+                fontSize: "16px"
+              }}
+            />
+            <button
+              className="btnform"
+              type="submit"
+              style={{
+                background: "linear-gradient(120deg,rgb(101, 246, 145) 0%,rgb(133, 243, 253) 100%)",
+                color: "#fff",
+                border: "none",
+                borderRadius: "8px",
+                padding: "12px",
+                fontWeight: 600,
+                fontSize: "16px",
+                cursor: "pointer",
+                marginTop: "8px",
+                transition: "background 0.3s"
+              }}
+            >
+              Iniciar Sesión
+            </button>
+            <a
+              href="/home"
+              style={{
+                color: "#f76d6d",
+                textAlign: "center",
+                marginTop: "8px",
+                textDecoration: "underline",
+                fontSize: "15px"
+              }}
+            >
+              Continuar sin logearme
+            </a>
+            <a
+              href="/register"
+              style={{
+                color: "#f76d6d",
+                textAlign: "center",
+                marginTop: "8px",
+                textDecoration: "underline",
+                fontSize: "15px"
+              }}
+            >
+              No tengo cuenta. Registrarme
+            </a>
+          </form>
+          {error && <p style={{ color: "red", marginTop: 12 }}>{error}</p>}
         </div>
-      <div className="col-md-8">
-          <img src={Imagen} alt="" className="tamaño-imagen" />
+        <div className="login-image-section" style={{
+          flex: 1.2,
+          background: "linear-gradient(120deg,rgb(101, 246, 145) 0%,rgb(133, 243, 253) 100%)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center"
+        }}>
+          <img
+            src={Imagen}
+            alt=""
+            style={{
+              width: "90%",
+              maxWidth: "400px",
+              borderRadius: "16px",
+              boxShadow: "0 4px 24px 0 rgba(31, 38, 135, 0.18)"
+            }}
+          />
         </div>
       </div>
     </div>
-    
-
-
   );
 
 }
