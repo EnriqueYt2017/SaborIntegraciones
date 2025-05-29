@@ -1,0 +1,31 @@
+
+
+
+.containers {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    }
+
+
+.estilo-logo{
+    border-radius: 50%;
+    height: 60px;
+    width: 60px;
+    margin: 0 auto;
+
+}
+
+.containerss {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 15px;
+    }
+
+.containerss{
+    background: linear-gradient(45deg, #4bd4cb, #acece8);
+    
+  }
