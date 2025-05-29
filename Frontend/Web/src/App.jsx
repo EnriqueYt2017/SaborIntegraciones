@@ -4,6 +4,8 @@ import Home from "./Components/Home/Home";
 import Login from "./Components/Login-Register/login";
 import Register from "./Components/Login-Register/Register";
 import Perfil from "./Components/Home/Perfil";
+import Contactenos from "./Components/Home/Contactenos";
+import Servicios from "./Components/Home/Servicios";
 const App = () => {
     return (
         <Router>
@@ -13,6 +15,8 @@ const App = () => {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/perfil" element={<Perfil />} />
+                <Route path="/contactenos" element={<Contactenos />} />
+                <Route path="/servicios" element={<Servicios />} />
                 {/* 🔹 Página no encontrada */}
                 <Route path="*" element={<h1>404 - Página no encontrada</h1>} />
             </Routes>

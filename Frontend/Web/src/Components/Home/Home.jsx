@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
 // eslint-disable-next-line no-unused-vars
 import axios from 'axios';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from "react-router-dom";
 
 import Imagelogo from '../../assets/icono-logo.png';
@@ -103,7 +103,7 @@ useEffect(() => {
                         <li className="nav-item"><a href="#" className="nav-link">Productos</a></li>
                         <li className="nav-item"><a href="#" className="nav-link">Servicios</a></li>
                         <li className="nav-item"><a href="#" className="nav-link">Reservas</a></li>
-                        <li className="nav-item"><a href="#" className="nav-link">Contáctenos</a></li>
+                        <li className="nav-item"><a href="/contactenos" className="nav-link">Contáctenos</a></li>
                     </ul>
                 </nav>
             </div>
