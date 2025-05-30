@@ -101,7 +101,7 @@ useEffect(() => {
                         </li>
                         <li className="nav-item"><a href="/Home" className="nav-link">Inicio</a></li>
                         <li className="nav-item"><a href="#" className="nav-link">Productos</a></li>
-                        <li className="nav-item"><a href="#" className="nav-link">Servicios</a></li>
+                        <li className="nav-item"><a href="/servicios" className="nav-link">Servicios</a></li>
                         <li className="nav-item"><a href="#" className="nav-link">Reservas</a></li>
                         <li className="nav-item"><a href="/contactenos" className="nav-link">Contáctenos</a></li>
                     </ul>
@@ -158,7 +158,7 @@ useEffect(() => {
                             boxShadow: "0 2px 8px #0002",
                             transition: "background 0.2s, color 0.2s"
                         }}
-                        onClick={() => window.scrollTo({ top: 600, behavior: "smooth" })}
+                        onClick={() => window.scrollTo({ top: 400, behavior: "smooth" })}
                     >
                         Conoce más
                     </button>
@@ -195,23 +195,6 @@ useEffect(() => {
                     <p style={{ color: "#444" }}>
                         <b>Visión:</b> Todos nuestros muebles de palets son 100% Ecofriendly, permitiendo a nuestra empresa sea una empresa con huella verde.
                     </p>
-                    <div style={{ display: "flex", justifyContent: "center", marginTop: "1.5rem" }}>
-                        <button
-                            style={{
-                                backgroundColor: "#6c757d",
-                                color: "#fff",
-                                border: "none",
-                                padding: "0.5rem 2rem",
-                                borderRadius: "6px",
-                                cursor: "pointer",
-                                fontSize: "1.1rem",
-                                fontWeight: 500,
-                                boxShadow: "0 2px 8px #0001"
-                            }}
-                        >
-                            Beneficios
-                        </button>
-                    </div>
                 </div>
                 <div style={{
                     width: "320px",
@@ -325,7 +308,7 @@ useEffect(() => {
             </div>
             {/* Beneficios */}
             <div style={{ textAlign: "center", margin: "2rem 0 1.5rem 0" }}>
-                <h2 style={{ margin: 0, fontWeight: 700, color: "#212529" }}>Beneficios</h2>
+                <h2 className='Beneficio-section' style={{ margin: 0, fontWeight: 700, color: "#212529" }}>Beneficios</h2>
             </div>
             <div style={{
                 display: "flex",

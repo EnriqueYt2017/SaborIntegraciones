@@ -6,7 +6,12 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/data": "http://localhost:5000",
+      "/api/clientes": "http://localhost:5000",
     },
+    "/api": {
+                target: "https://api-sabor-latino-chile.onrender.com",
+                changeOrigin: true,
+                secure: false
+            }
   },
 });
