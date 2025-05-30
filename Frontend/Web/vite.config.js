@@ -7,6 +7,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api/clientes": "http://localhost:5000",
+      "/api/productos": "http://localhost:5000",
     },
     "/api": {
                 target: "https://api-sabor-latino-chile.onrender.com",

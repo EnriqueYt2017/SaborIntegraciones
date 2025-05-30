@@ -197,7 +197,7 @@ function Contactenos() {
                             </form>
                         </div>
                     </div>
-                   { /* Mapa a la derecha */}
+                    { /* Mapa a la derecha */}
                     <div style={{
                         flex: 1,
                         display: "flex",
@@ -237,6 +237,18 @@ function Contactenos() {
                     </div>
                 </div>
             </div>
+            {/* Footer */}
+            <footer style={{
+                background: "#212529",
+                color: "#fff",
+                textAlign: "center",
+                padding: "1.2rem 0",
+                borderTopLeftRadius: 12,
+                borderTopRightRadius: 12,
+                fontSize: "1rem"
+            }}>
+                © {new Date().getFullYear()} Sabor Integraciones. Todos los derechos reservados.
+            </footer>
         </div>
     );
 };

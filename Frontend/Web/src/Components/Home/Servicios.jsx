@@ -317,6 +317,19 @@ function Servicios() {
                     Atención personalizada, motivación constante y acompañamiento profesional para lograr tus objetivos. ¡Transforma tu vida con nosotros!
                 </div>
             </div>
+            {/* Footer */}
+            <footer style={{
+                background: "#212529",
+                color: "#fff",
+                textAlign: "center",
+                padding: "1.2rem 0",
+                marginTop: "2rem",
+                borderTopLeftRadius: 12,
+                borderTopRightRadius: 12,
+                fontSize: "1rem"
+            }}>
+                © {new Date().getFullYear()} Sabor Integraciones. Todos los derechos reservados.
+            </footer>
         </div>
     );
 };

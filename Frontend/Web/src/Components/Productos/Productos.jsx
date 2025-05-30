@@ -1,103 +1,48 @@
-import React, { useEffect, useState } from 'react';
-import axios from 'axios';
+import { useState } from "react";
+import axios from "axios";
 
-function Productos() {
-    const [productos, setProductos] = useState([]);
-    const [nuevoProducto, setNuevoProducto] = useState({
-        nombre: '',
-        precio: '',
-        descripcion: '',
-        id_categoria: ''
-    });
+function AgregarProducto() {
+    const [codigo_producto, setCodigoProducto] = useState("");
+    const [nombre, setNombre] = useState("");
+    const [descripcion, setDescripcion] = useState("");
+    const [precio, setPrecio] = useState("");
+    const [id_categoria, setIdCategoria] = useState("");
 
-    // Obtener productos al cargar
-    useEffect(() => {
-        obtenerProductos();
-    }, []);
-
-    const obtenerProductos = async () => {
-        try {
-            const res = await axios.get('http://localhost:5000/productos');
-            setProductos(res.data);
-        } catch (error) {
-            console.error('Error al obtener productos:', error);
-        }
-    };
-
-    // Manejar cambios en el formulario
-    const handleChange = e => {
-        setNuevoProducto({
-            ...nuevoProducto,
-            [e.target.name]: e.target.value
-        });
-    };
-
-    // Agregar producto
-    const agregarProducto = async e => {
+    const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (!codigo_producto || !nombre || !descripcion || !precio || !id_categoria) {
+            alert("Todos los campos son obligatorios");
+            return;
+        }
+
         try {
-            await axios.post('http://localhost:5000/productos', {
-                ...nuevoProducto,
-                precio: parseFloat(nuevoProducto.precio)
+            const response = await axios.post("http://localhost:5000/productos", {
+                codigo_producto,
+                nombre,
+                descripcion,
+                precio,
+                id_categoria
             });
-            setNuevoProducto({ nombre: '', precio: '', descripcion: '', id_categoria: '' });
-            obtenerProductos();
-            alert('Producto agregado correctamente');
+
+            console.log("Respuesta del servidor:", response.data); // ✅ Verificar si llega correctamente
+            alert(response.data.mensaje); // ✅ Mostrar mensaje de éxito
         } catch (error) {
-            console.error('Error al agregar producto:', error);
-            alert('Error al agregar producto');
+            console.error("Error al agregar producto:", error.response?.data || error.message);
+            alert("Error al agregar producto: " + (error.response?.data?.error || "Problema desconocido"));
         }
     };
 
     return (
-        <div>
-            <h2>Productos</h2>
-            <ul>
-                {productos.map(prod => (
-                    <li key={prod.CODIGO_PRODUCTO || prod.codigo_producto}>
-                        <b>{prod.NOMBRE || prod.nombre}</b> - ${prod.PRECIO || prod.precio} <br />
-                        {prod.DESCRIPCION || prod.descripcion}
-                    </li>
-                ))}
-            </ul>
-            <h3>Agregar Producto</h3>
-            <form onSubmit={agregarProducto}>
-                <input
-                    type="text"
-                    name="nombre"
-                    placeholder="Nombre"
-                    value={nuevoProducto.nombre}
-                    onChange={handleChange}
-                    required
-                />
-                <input
-                    type="number"
-                    name="precio"
-                    placeholder="Precio"
-                    value={nuevoProducto.precio}
-                    onChange={handleChange}
-                    required
-                />
-                <input
-                    type="text"
-                    name="descripcion"
-                    placeholder="Descripción"
-                    value={nuevoProducto.descripcion}
-                    onChange={handleChange}
-                    required
-                />
-                <input
-                    type="number"
-                    name="id_categoria"
-                    placeholder="ID Categoría"
-                    value={nuevoProducto.id_categoria}
-                    onChange={handleChange}
-                    required
-                />
-                <button type="submit">Agregar</button>
-            </form>
-        </div>
+        <form onSubmit={handleSubmit}>
+            <input type="number" placeholder="Código Producto" value={codigo_producto} onChange={(e) => setCodigoProducto(e.target.value)} />
+            <input type="text" placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
+            <input type="text" placeholder="Descripción" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
+            <input type="number" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} />
+            <input type="number" placeholder="ID Categoría" value={id_categoria} onChange={(e) => setIdCategoria(e.target.value)} />
+            <button type="submit">Agregar Producto</button>
+        </form>
     );
 }
 
-export default Productos;
+export default AgregarProducto;
