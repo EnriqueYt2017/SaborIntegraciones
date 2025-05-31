@@ -100,7 +100,7 @@ useEffect(() => {
                             </a>
                         </li>
                         <li className="nav-item"><a href="/Home" className="nav-link">Inicio</a></li>
-                        <li className="nav-item"><a href="#" className="nav-link">Productos</a></li>
+                        <li className="nav-item"><a href="/productos" className="nav-link">Productos</a></li>
                         <li className="nav-item"><a href="/servicios" className="nav-link">Servicios</a></li>
                         <li className="nav-item"><a href="#" className="nav-link">Reservas</a></li>
                         <li className="nav-item"><a href="/contactenos" className="nav-link">Contáctenos</a></li>

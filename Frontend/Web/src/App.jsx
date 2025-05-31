@@ -8,7 +8,11 @@ import Contactenos from "./Components/Home/Contactenos";
 import Servicios from "./Components/Home/Servicios";
 import Productos from "./Components/Productos/Productos";
 import Inicio from "./Components/Dashboard/Inicio";
+import Carrito from "./Components/Carrito/carrito";
+
 const App = () => {
+
+
     return (
         <Router>
             <Routes>
@@ -18,6 +22,7 @@ const App = () => {
                 <Route path="/register" element={<Register />} />
                 <Route path="/perfil" element={<Perfil />} />
                 <Route path="/contactenos" element={<Contactenos />} />
+                <Route path="/carrito" element={<Carrito/>} />
                 <Route path="/productos" element={<Productos />} />
                 <Route path="/servicios" element={<Servicios />} />
                 {/* 🔹 Dashboard */}
