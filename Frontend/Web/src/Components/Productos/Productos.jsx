@@ -377,7 +377,7 @@ function Productos() {
                                     marginBottom: 18,
                                     filter: "drop-shadow(0 2px 8px #43e97b30)"
                                 }}>
-                                    🍔
+                                    <span role="img" aria-label="producto" style={{ fontSize: 56 }}>🛍️</span>
                                 </div>
                                 <div style={{
                                     fontWeight: 700,

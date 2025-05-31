@@ -1,118 +1,160 @@
-import React, { useEffect, useState } from "react";
+/* eslint-disable no-undef */
+/* eslint-disable no-unused-vars */
+import { useState, useEffect } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
+
+import Imagelogo from '../../assets/icono-logo.png';
 
 const styles = {
     container: {
-        maxWidth: "500px",
+        maxWidth: 600,
         margin: "40px auto",
-        background: "linear-gradient(135deg,rgb(141, 206, 246) 0%,rgb(118, 255, 152) 100%)",
-        borderRadius: "22px",
-        boxShadow: "0 12px 40px rgba(230, 126, 34, 0.18), 0 2px 8px #e67e2255",
-        padding: "38px 28px",
-        fontFamily: "'Segoe UI', 'Roboto', sans-serif",
-        color: "#222",
-        border: "2px solid #e67e22",
-        position: "relative",
-        overflow: "hidden",
+        background: "#fff",
+        borderRadius: 16,
+        boxShadow: "0 4px 24px #0001",
+        padding: 32,
+        fontFamily: "Segoe UI, sans-serif",
     },
     title: {
-        fontSize: "2.5rem",
-        fontWeight: "bold",
-        marginBottom: "22px",
-        letterSpacing: "2px",
-        color: "#fff",
-        textShadow: "0 4px 18px #e67e22cc, 0 2px 8px #f6e58d99",
+        fontSize: 28,
+        fontWeight: 700,
+        marginBottom: 24,
+        color: "#222",
         textAlign: "center",
-        WebkitBackgroundClip: "text",
     },
-    list: {
-        listStyle: "none",
-        padding: 0,
-        marginBottom: "22px",
-    },
-    item: {
-        background: "rgba(255,255,255,0.85)",
-        borderRadius: "12px",
-        marginBottom: "14px",
-        padding: "16px 20px",
+    emptyContainer: {
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
-        justifyContent: "space-between",
-        boxShadow: "0 2px 12px #e67e2222",
-        border: "1.5px solid #f6e58d",
-        transition: "transform 0.15s",
+        gap: 16,
+        marginTop: 40,
+        marginBottom: 40,
     },
-    productInfo: {
-        fontWeight: "600",
-        fontSize: "1.15rem",
-        color: "#e67e22",
-        letterSpacing: "0.5px",
+    emptyIcon: {
+        fontSize: 96,
+        color: "#e0e0e0",
+    },
+    emptyText: {
+        fontSize: 22,
+        color: "#888",
+        fontWeight: 500,
+    },
+    volverBtn: {
+        marginTop: 24,
+        background: "#43e97b",
+        color: "#fff",
+        border: "none",
+        borderRadius: 8,
+        padding: "12px 32px",
+        fontSize: 18,
+        fontWeight: 600,
+        cursor: "pointer",
+        transition: "background 0.2s",
+    },
+    table: {
+        width: "100%",
+        borderCollapse: "collapse",
+        marginBottom: 24,
+    },
+    th: {
+        background: "#f7f7f7",
+        color: "#333",
+        fontWeight: 700,
+        padding: "12px 8px",
+        borderBottom: "2px solid #e0e0e0",
+        textAlign: "left",
+    },
+    td: {
+        padding: "10px 8px",
+        borderBottom: "1px solid #f0f0f0",
+        verticalAlign: "middle",
+        fontSize: 16,
+    },
+    productImg: {
+        width: 48,
+        height: 48,
+        objectFit: "cover",
+        borderRadius: 8,
+        background: "#f5f5f5",
+        display: "block",
     },
     eliminarBtn: {
-        background: "linear-gradient(90deg, #e74c3c 60%, #ff7979 100%)",
+        background: "#ff5e57",
         color: "#fff",
         border: "none",
-        borderRadius: "8px",
-        padding: "8px 18px",
+        borderRadius: 6,
+        padding: "8px 16px",
+        fontWeight: 600,
         cursor: "pointer",
-        fontWeight: "bold",
-        fontSize: "1rem",
-        boxShadow: "0 2px 8px #e74c3c44",
-        transition: "background 0.2s, transform 0.1s",
+        fontSize: 15,
+        transition: "background 0.2s",
     },
     limpiarBtn: {
-        background: "linear-gradient(90deg, #e67e22 60%, #f6e58d 100%)",
+        background: "#e67e22",
         color: "#fff",
         border: "none",
-        borderRadius: "10px",
-        padding: "12px 26px",
+        borderRadius: 6,
+        padding: "10px 20px",
+        fontWeight: 600,
         cursor: "pointer",
-        fontWeight: "bold",
-        fontSize: "1.1rem",
-        marginTop: "14px",
-        marginRight: "12px",
-        boxShadow: "0 2px 12px #e67e2255",
-        transition: "background 0.2s, transform 0.1s",
+        fontSize: 16,
+        marginRight: 12,
+        transition: "background 0.2s",
     },
     pagarBtn: {
-        background: "linear-gradient(90deg, #27ae60 60%, #6ab04c 100%)",
+        background: "linear-gradient(90deg,#43e97b 0%,#38f9d7 100%)",
         color: "#fff",
         border: "none",
-        borderRadius: "10px",
-        padding: "12px 32px",
+        borderRadius: 6,
+        padding: "10px 24px",
+        fontWeight: 700,
         cursor: "pointer",
-        fontWeight: "bold",
-        fontSize: "1.15rem",
-        marginTop: "14px",
-        boxShadow: "0 2px 16px #27ae6044",
-        transition: "background 0.2s, transform 0.1s",
-        float: "right",
-        letterSpacing: "1px",
-        textTransform: "uppercase",
+        fontSize: 18,
+        boxShadow: "0 2px 8px #43e97b33",
+        transition: "background 0.2s",
     },
     total: {
-        marginTop: "34px",
-        fontSize: "1.7rem",
-        fontWeight: "bold",
-        color: "#27ae60",
+        marginTop: 24,
+        fontWeight: 700,
+        fontSize: 20,
+        color: "#43e97b",
         textAlign: "right",
-        letterSpacing: "1.5px",
-        textShadow: "0 2px 8px #6ab04c33",
     },
-    empty: {
-        color: "#888",
-        fontStyle: "italic",
-        margin: "36px 0",
-        textAlign: "center",
-        fontSize: "1.2rem",
-    }
+    actionsRow: {
+        display: "flex",
+        justifyContent: "flex-end",
+        gap: 12,
+        marginTop: 8,
+    },
 };
 
 function Carrito() {
+    const [user, setUser] = useState(null);
+    const [menuVisible, setMenuVisible] = useState(false);
+    const navigate = useNavigate();
     const [carrito, setCarrito] = useState([]);
 
     useEffect(() => {
         const carritoGuardado = JSON.parse(localStorage.getItem("carrito")) || [];
         setCarrito(carritoGuardado);
+        const userData = localStorage.getItem("user");
+        if (userData) {
+            try {
+                const parsedUser = JSON.parse(userData);
+                if (parsedUser && Object.keys(parsedUser).length > 0) {
+                    setUser(parsedUser);
+                    setPrimerNombre(parsedUser.primer_nombre || "");
+                    setSegundoNombre(parsedUser.segundo_nombre || "");
+                    setPrimerApellido(parsedUser.primer_apellido || "");
+                    setSegundoApellido(parsedUser.segundo_apellido || "");
+                    setDireccion(parsedUser.direccion || "");
+                    setCorreo(parsedUser.correo || "");
+                }
+            } catch (error) {
+                console.error("Error al parsear usuario:", error);
+            }
+        }
     }, []);
 
     const total = carrito.reduce((acc, item) => acc + item.precio * item.cantidad, 0);
@@ -128,44 +170,179 @@ function Carrito() {
         localStorage.setItem("carrito", JSON.stringify(nuevoCarrito));
     };
 
-    const pagar = () => {
-        alert("¡Gracias por tu compra! 🥳");
-        limpiarCarrito();
+    const pagar = async () => {
+        localStorage.setItem("carrito_backup", localStorage.getItem("carrito"));
+        if (total <= 0) {
+            alert("El carrito está vacío.");
+            return;
+        }
+        try {
+            const result = await axios.post("http://localhost:5000/webpay/create", {
+                amount: total,
+                sessionId: "sess-" + Date.now(),
+                buyOrder: "order-" + Date.now(),
+                returnUrl: "http://localhost:5173/return"
+            });
+            window.location.href = result.data.url + "?token_ws=" + result.data.token;
+        } catch (error) {
+            alert("Error al iniciar el pago: " + (error.response?.data?.error || error.message));
+            console.error(error.response?.data || error);
+        }
+    };
+
+    const volverAProductos = () => {
+        window.location.href = "/productos";
+    };
+
+    // Funcion para cerrar sesión
+    const cerrarSesion = () => {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        setUser(null);
+        navigate("/login");
     };
 
     return (
-        <div style={styles.container}>
-            <h2 style={styles.title}>Carrito de Compras</h2>
-            {carrito.length === 0 ? (
-                <p style={styles.empty}>El carrito está vacío.</p>
-            ) : (
-                <>
-                    <ul style={styles.list}>
-                        {carrito.map(item => (
-                            <li key={item.codigo_producto} style={styles.item}>
-                                <span style={styles.productInfo}>
-                                    {item.nombre} <span style={{color:"#e67e22"}}>-</span> ${item.precio} x {item.cantidad}
-                                </span>
+        <div>
+            {/*Navbar */}
+            <div className="containers">
+                {/* ...NO TOCAR NAVBAR... */}
+                <nav id="navbar-e" className="navbar bg-body-tertiary px-3">
+                    <a href="#" className="navbar-brand">
+                        <img src={Imagelogo} alt="Logo" className="estilo-logo" />
+                    </a>
+                    <ul className="nav nav-pills">
+                        {user ? (
+                            <li className="nav-item dropdown">
                                 <button
-                                    style={styles.eliminarBtn}
-                                    onClick={() => eliminarProducto(item.codigo_producto)}
+                                    className="nav-link btn dropdown-toggle"
+                                    data-bs-toggle="dropdown"
+                                    style={{ color: "#fff" }}
+                                    onClick={() => setMenuVisible(!menuVisible)}
                                 >
-                                    Eliminar
+                                    {(user.primer_nombre || "Usuario").toUpperCase()}
                                 </button>
+                                <ul className={`dropdown-menu${menuVisible ? " show" : ""}`}>
+                                    <li>
+                                        <button
+                                            className="dropdown-item"
+                                            onClick={() => navigate("/Perfil")}
+                                        >
+                                            Ver perfil
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <a href="#" className="dropdown-item">Ver más</a>
+                                    </li>
+                                    <li>
+                                        <button onClick={cerrarSesion} className="dropdown-item">Cerrar sesión</button>
+                                    </li>
+                                </ul>
                             </li>
-                        ))}
+                        ) : (
+                            <>
+                                <li className="nav-item">
+                                    <button
+                                        className="nav-link btn"
+                                        style={{ color: "#fff" }}
+                                        onClick={() => navigate("/login")}
+                                    >
+                                        Iniciar sesión
+                                    </button>
+                                </li>
+                                <li className="nav-item">
+                                    <button
+                                        className="nav-link btn"
+                                        style={{ color: "#fff" }}
+                                        onClick={() => navigate("/register")}
+                                    >
+                                        Registrarse
+                                    </button>
+                                </li>
+                            </>
+                        )}
+                        <li className="nav-item">
+                            <a href="/carrito" className="nav-link">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-cart" viewBox="0 0 16 16">
+                                    <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l1.313 7h8.17l1.313-7zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2" />
+                                </svg>
+                            </a>
+                        </li>
+                        <li className="nav-item"><a href="/Home" className="nav-link">Inicio</a></li>
+                        <li className="nav-item"><a href="#" className="nav-link">Productos</a></li>
+                        <li className="nav-item"><a href="#" className="nav-link">Servicios</a></li>
+                        <li className="nav-item"><a href="#" className="nav-link">Reservas</a></li>
+                        <li className="nav-item"><a href="/contactenos" className="nav-link">Contáctenos</a></li>
                     </ul>
-                    <div>
-                        <button style={styles.limpiarBtn} onClick={limpiarCarrito}>
-                            Limpiar Todo
-                        </button>
-                        <button style={styles.pagarBtn} onClick={pagar}>
-                            <span role="img" aria-label="pagar">💳</span> Pagar
+                </nav>
+            </div>
+            <div style={styles.container}>
+
+                <h2 style={styles.title}>Listado de Productos</h2>
+                
+                {carrito.length === 0 ? (
+                    <div style={styles.emptyContainer}>
+                        <span style={styles.emptyIcon} role="img" aria-label="carrito">
+                            🛒
+                        </span>
+                        <div style={styles.emptyText}>No hay productos</div>
+                        <button style={styles.volverBtn} onClick={volverAProductos}>
+                            Volver
                         </button>
                     </div>
-                </>
-            )}
-            <div style={styles.total}>Total: ${total}</div>
+                ) : (
+                    <>
+                        <table style={styles.table}>
+                            <thead>
+                                <tr>
+                                    <th style={styles.th}></th>
+                                    <th style={styles.th}>Producto</th>
+                                    <th style={styles.th}>Precio</th>
+                                    <th style={styles.th}>Cantidad</th>
+                                    <th style={styles.th}>Subtotal</th>
+                                    <th style={styles.th}></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {carrito.map(item => (
+                                    <tr key={item.codigo_producto}>
+                                        <td style={styles.td}>
+                                            {item.imagen ? (
+                                                <img src={item.imagen} alt={item.nombre} style={styles.productImg} />
+                                            ) : (
+                                                <span role="img" aria-label="producto" style={{ fontSize: 56 }}>🛍️</span>
+                                            )}
+                                        </td>
+                                        <td style={styles.td}>{item.nombre}</td>
+                                        <td style={styles.td}>${item.precio}</td>
+                                        <td style={styles.td}>{item.cantidad}</td>
+                                        <td style={styles.td}>${item.precio * item.cantidad}</td>
+                                        <td style={styles.td}>
+                                            <button
+                                                style={styles.eliminarBtn}
+                                                onClick={() => eliminarProducto(item.codigo_producto)}
+                                            >
+                                                Eliminar
+                                            </button>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                        <div style={styles.actionsRow}>
+                            <button style={styles.limpiarBtn} onClick={limpiarCarrito}>
+                                Limpiar Carrito
+                            </button>
+                            <button style={styles.pagarBtn} onClick={pagar}>
+                                <span role="img" aria-label="pagar">💳</span> Pagar
+                            </button>
+                        </div>
+                        <div style={styles.total}>
+                            Total a pagar: ${total}
+                        </div>
+                    </>
+                )}
+            </div>
         </div>
     );
 }

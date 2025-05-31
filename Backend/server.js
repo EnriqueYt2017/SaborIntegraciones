@@ -2,14 +2,17 @@ const express = require("express");
 const oracledb = require("oracledb");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const cors = require("cors");
 const dotenv = require("dotenv");
+const app = express();
+const cors = require("cors");
+const webpayRoutes = require("./routes/webpay");
+
 dotenv.config();
 
-const app = express();
 app.use(express.json());
-
 app.use(cors());
+
+app.use("/webpay", webpayRoutes);
 
 
 const dbConfig = {

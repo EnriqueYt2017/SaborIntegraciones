@@ -9,6 +9,7 @@ import Servicios from "./Components/Home/Servicios";
 import Productos from "./Components/Productos/Productos";
 import Inicio from "./Components/Dashboard/Inicio";
 import Carrito from "./Components/Carrito/carrito";
+import Return from "./Components/Carrito/Return";
 
 const App = () => {
 
@@ -23,6 +24,9 @@ const App = () => {
                 <Route path="/perfil" element={<Perfil />} />
                 <Route path="/contactenos" element={<Contactenos />} />
                 <Route path="/carrito" element={<Carrito/>} />
+                <Route path="/return" element={<Return />} />
+                
+                {/* 🔹 Rutas de productos y servicios */}
                 <Route path="/productos" element={<Productos />} />
                 <Route path="/servicios" element={<Servicios />} />
                 {/* 🔹 Dashboard */}
