@@ -10,6 +10,7 @@ import Productos from "./Components/Productos/Productos";
 import Inicio from "./Components/Dashboard/Inicio";
 import Carrito from "./Components/Carrito/carrito";
 import Return from "./Components/Carrito/Return";
+import Seguimiento from "./Components/Pedidos/Seguimiento";
 
 const App = () => {
 
@@ -25,7 +26,7 @@ const App = () => {
                 <Route path="/contactenos" element={<Contactenos />} />
                 <Route path="/carrito" element={<Carrito/>} />
                 <Route path="/return" element={<Return />} />
-                
+                <Route path="/seguimiento" element={<Seguimiento />} />
                 {/* 🔹 Rutas de productos y servicios */}
                 <Route path="/productos" element={<Productos />} />
                 <Route path="/servicios" element={<Servicios />} />

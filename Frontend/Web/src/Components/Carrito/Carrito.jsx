@@ -134,30 +134,53 @@ function Carrito() {
     const [menuVisible, setMenuVisible] = useState(false);
     const navigate = useNavigate();
     const [carrito, setCarrito] = useState([]);
+    const [esCliente, setEsCliente] = useState(false);
 
     useEffect(() => {
         const carritoGuardado = JSON.parse(localStorage.getItem("carrito")) || [];
         setCarrito(carritoGuardado);
+
         const userData = localStorage.getItem("user");
         if (userData) {
             try {
                 const parsedUser = JSON.parse(userData);
                 if (parsedUser && Object.keys(parsedUser).length > 0) {
                     setUser(parsedUser);
-                    setPrimerNombre(parsedUser.primer_nombre || "");
-                    setSegundoNombre(parsedUser.segundo_nombre || "");
-                    setPrimerApellido(parsedUser.primer_apellido || "");
-                    setSegundoApellido(parsedUser.segundo_apellido || "");
-                    setDireccion(parsedUser.direccion || "");
-                    setCorreo(parsedUser.correo || "");
                 }
             } catch (error) {
                 console.error("Error al parsear usuario:", error);
             }
         }
+
+        // Validar cliente por rut y dvrut (robusto)
+        if (userData) {
+            const userData = localStorage.getItem("user");
+            axios.get("http://localhost:5000/clientes")
+                .then(res => {
+                    const clientes = res.data;
+                    const clean = val => String(val).replace(/^0+/, '').trim();
+                    const userRut = clean(user.rut);
+                    const userDv = clean(user.dvrut);
+
+                    // 🔹 Busca coincidencia exacta con `numero_rut`
+                    const match = clientes.some(c =>
+                        (clean(c.numero_rut ?? c.rut) === userRut) &&
+                        (clean(c.dv_rut ?? c.dvrut) === userDv)
+                    );
+
+                    setEsCliente(match);
+                })
+                .catch(error => {
+                    console.error("Error al validar cliente:", error);
+                    setEsCliente(false);
+                });
+        }
+
     }, []);
 
-    const total = carrito.reduce((acc, item) => acc + item.precio * item.cantidad, 0);
+    // Calcula el total con descuento si corresponde
+    const totalSinDescuento = carrito.reduce((acc, item) => acc + (item.precio * (item.cantidad || 1)), 0);
+    const total = esCliente ? parseFloat((totalSinDescuento * 0.8).toFixed(2)) : totalSinDescuento;
 
     const limpiarCarrito = () => {
         setCarrito([]);
@@ -171,30 +194,32 @@ function Carrito() {
     };
 
     const pagar = async () => {
-        localStorage.setItem("carrito_backup", localStorage.getItem("carrito"));
-        if (total <= 0) {
-            alert("El carrito está vacío.");
-            return;
-        }
-        try {
-            const result = await axios.post("http://localhost:5000/webpay/create", {
-                amount: total,
-                sessionId: "sess-" + Date.now(),
-                buyOrder: "order-" + Date.now(),
-                returnUrl: "http://localhost:5173/return"
-            });
-            window.location.href = result.data.url + "?token_ws=" + result.data.token;
-        } catch (error) {
-            alert("Error al iniciar el pago: " + (error.response?.data?.error || error.message));
-            console.error(error.response?.data || error);
-        }
-    };
+    const montoPagar = total;
+    if (total <= 0) {
+        alert("El carrito está vacío.");
+        return;
+    }
+    const numeroOrden = "order-" + Date.now();
+    localStorage.setItem("numero_orden", numeroOrden); // Guarda el número de orden
+    localStorage.setItem("carrito_backup", localStorage.getItem("carrito"));
+    try {
+        const result = await axios.post("http://localhost:5000/webpay/create", {
+            amount: montoPagar,
+            sessionId: "sess-" + Date.now(),
+            buyOrder: numeroOrden,
+            returnUrl: "http://localhost:5173/return"
+        });
+        window.location.href = result.data.url + "?token_ws=" + result.data.token;
+    } catch (error) {
+        alert("Error al iniciar el pago: " + (error.response?.data?.error || error.message));
+        console.error(error.response?.data || error);
+    }
+};
 
     const volverAProductos = () => {
         window.location.href = "/productos";
     };
 
-    // Funcion para cerrar sesión
     const cerrarSesion = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
@@ -279,7 +304,7 @@ function Carrito() {
             <div style={styles.container}>
 
                 <h2 style={styles.title}>Listado de Productos</h2>
-                
+
                 {carrito.length === 0 ? (
                     <div style={styles.emptyContainer}>
                         <span style={styles.emptyIcon} role="img" aria-label="carrito">
@@ -338,7 +363,23 @@ function Carrito() {
                             </button>
                         </div>
                         <div style={styles.total}>
-                            Total a pagar: ${total}
+                            {/* Línea de descuento */}
+                            <div style={{ color: esCliente ? "#43e97b" : "#e67e22", fontWeight: 600, marginBottom: 8 }}>
+                                {esCliente
+                                    ? "¡Cliente registrado! 20% de descuento aplicado."
+                                    : "No tiene descuento"}
+                            </div>
+                            {/* Montos */}
+                            <div>
+                                <span style={{ fontWeight: 500 }}>Monto sin descuento: </span>${totalSinDescuento}
+                            </div>
+                            <div>
+                                <span style={{ fontWeight: 500 }}>Monto con descuento: </span>
+                                {esCliente ? `$${total}` : "No aplica"}
+                            </div>
+                            <div style={{ marginTop: 8 }}>
+                                <span style={{ fontWeight: 700 }}>Total a pagar: </span>${total}
+                            </div>
                         </div>
                     </>
                 )}

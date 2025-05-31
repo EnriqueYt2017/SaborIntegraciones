@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import axios from "axios";
@@ -8,7 +9,6 @@ function Return() {
     const location = useLocation();
     const [estado, setEstado] = useState("cargando"); // "cargando", "exito", "rechazo"
     const [detalle, setDetalle] = useState(null);
-
     // Obtén el token_ws de la URL
     const params = new URLSearchParams(location.search);
     const token_ws = params.get("token_ws");
@@ -45,30 +45,68 @@ function Return() {
     }, [token_ws]);
 
     // Función para descargar el voucher en PDF
-    const descargarPDF = () => {
-        if (!detalle) return;
-        const doc = new jsPDF();
-        doc.setFontSize(22);
-        doc.text("Voucher de Compra", 20, 20);
-        doc.setFontSize(14);
-        doc.text(`Orden: ${detalle.buy_order || detalle.buyOrder}`, 20, 35);
-        doc.text(`Fecha: ${new Date().toLocaleString()}`, 20, 45);
-        doc.text("Productos:", 20, 60);
+// ...existing code...
+const descargarPDF = () => {
+    if (!detalle) return;
+    const doc = new jsPDF();
 
-        let y = 70;
-        detalle.carrito.forEach(item => {
-            doc.text(
-                `${item.nombre} x${item.cantidad} - $${item.precio} c/u - Subtotal: $${item.precio * item.cantidad}`,
-                20,
-                y
-            );
-            y += 10;
-        });
-        doc.setFontSize(16);
-        doc.text(`Total: $${detalle.carrito.reduce((acc, item) => acc + item.precio * item.cantidad, 0)}`, 20, y + 10);
+    // Fondo de color (rectángulo)
+    doc.setFillColor(67, 233, 123); // verde claro
+    doc.rect(0, 0, 210, 297, "F"); // fondo para A4
 
-        doc.save("voucher.pdf");
-    };
+    // Logo (opcional, si tienes base64 o URL pública)
+    // doc.addImage('data:image/png;base64,...', 'PNG', 150, 10, 40, 20);
+
+    // Título
+    doc.setFontSize(22);
+    doc.setTextColor(255, 255, 255);
+    doc.text("Voucher de Compra", 20, 25);
+
+    // Caja blanca para los datos
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(10, 35, 190, 220, 8, 8, "F");
+
+    // Datos principales
+    doc.setFontSize(14);
+    doc.setTextColor(67, 233, 123);
+    doc.text(`Orden: ${detalle.buy_order || detalle.buyOrder}`, 20, 50);
+    doc.text(`Fecha: ${new Date().toLocaleString()}`, 20, 60);
+
+    // Tabla de productos
+    let y = 75;
+    doc.setTextColor(0, 0, 0);
+    doc.setFontSize(13);
+    doc.text("Producto", 20, y);
+    doc.text("Cant.", 90, y);
+    doc.text("Precio", 120, y);
+    doc.text("Subtotal", 160, y);
+    y += 7;
+    doc.setLineWidth(0.5);
+    doc.line(20, y, 190, y);
+    y += 7;
+
+    detalle.carrito.forEach(item => {
+        doc.text(item.nombre, 20, y);
+        doc.text(String(item.cantidad), 95, y, { align: "right" });
+        doc.text(`$${item.precio}`, 120, y);
+        doc.text(`$${item.precio * item.cantidad}`, 160, y);
+        y += 8;
+    });
+
+    // Total destacado
+    y += 10;
+    doc.setFontSize(16);
+    doc.setTextColor(67, 233, 123);
+    doc.text(`Total: $${detalle.carrito.reduce((acc, item) => acc + item.precio * item.cantidad, 0)}`, 20, y);
+
+    // Mensaje final
+    y += 15;
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text("¡Gracias por tu compra!", 20, y);
+
+    doc.save("voucher.pdf");
+};
 
     // Diseño atractivo para el voucher
     const voucherStyle = {

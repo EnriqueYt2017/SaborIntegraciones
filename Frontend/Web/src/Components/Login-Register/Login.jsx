@@ -31,6 +31,8 @@ const handleSubmit = async (e) => {
         if (response.data && response.data.usuario) {
             console.log("Usuario autenticado:", response.data.usuario); // 🔎 Verifica los datos antes de guardarlos
             localStorage.setItem("user", JSON.stringify(response.data.usuario));
+            localStorage.setItem("rut_usuario", response.data.usuario.rut); // 🔹 Guarda el RUT del usuario logueado
+
             localStorage.setItem("token", response.data.token); // 🔹 Guarda el token también
             navigate("/home");
         } else {

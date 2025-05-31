@@ -47,7 +47,7 @@ app.get("/api/Usuarios", async (req, res) => {
   }
 });
 
-//API
+//API EXTERNA SABOR LATINO
 app.get("/clientes", async (req, res) => {
   try {
     const response = await fetch("https://api-sabor-latino-chile.onrender.com/clientes");
@@ -422,6 +422,49 @@ app.delete("/productos/:id", async (req, res) => {
   } catch (error) {
     console.error("Error al eliminar producto:", error);
     res.status(500).json({ error: error.message });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+//PEDIDOS
+app.post("/pedidos", async (req, res) => {
+  const { numero_orden, rut, total, direccion, observaciones } = req.body;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      `INSERT INTO pedidos (numero_orden, rut, fecha_pedido, estado, total, direccion, observaciones)
+       VALUES (:numero_orden, :rut, SYSDATE, 'Sin enviar', :total, :direccion, :observaciones)`,
+      [numero_orden, rut, total, direccion, observaciones],
+      { autoCommit: true }
+    );
+    res.status(201).json({ mensaje: "Pedido registrado correctamente" });
+  } catch (error) {
+    console.error("Error al registrar pedido:", error);
+    res.status(500).json({ error: "Error al registrar pedido" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.get("/pedidos/:numero_orden", async (req, res) => {
+  const numero_orden = req.params.numero_orden;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT * FROM pedidos WHERE numero_orden = :numero_orden`,
+      [numero_orden],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Pedido no encontrado" });
+    }
+    res.json(result.rows[0]);
+  } catch (error) {
+    console.error("Error al buscar pedido:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
   } finally {
     if (connection) await connection.close();
   }
