@@ -86,6 +86,19 @@ function Productos() {
         alert("Producto agregado al carrito");
     };
 
+    // Funcion para agregar a la reserva
+    const agregarAReserva = (producto) => {
+        const reserva = JSON.parse(localStorage.getItem("carrito_reserva")) || [];
+        const index = reserva.findIndex(item => item.codigo_producto === producto.codigo_producto);
+        if (index >= 0) {
+            reserva[index].cantidad += 1;
+        } else {
+            reserva.push({ ...producto, cantidad: 1 });
+        }
+        localStorage.setItem("carrito_reserva", JSON.stringify(reserva));
+        alert("Producto agregado a la reserva");
+    };
+
     // Cambiar de página y resetear a la 1 si cambian los filtros
     useEffect(() => {
         setPagina(1);
@@ -433,9 +446,27 @@ function Productos() {
                                         boxShadow: "0 2px 8px #43e97b10",
                                         transition: "border 0.2s"
                                     }}
-                                    onClick={() => agregarAlCarrito(producto)}
+                                        onClick={() => agregarAlCarrito(producto)}
                                     >
                                         <span role="img" aria-label="carrito" style={{ fontSize: 22 }}>🛒</span>
+                                    </button>
+                                    <button className="reserva" style={{
+                                        background: "#fff",
+                                        border: "2px solid #e67e22",
+                                        borderRadius: 8,
+                                        padding: "10px 16px",
+                                        color: "#e67e22",
+                                        fontWeight: 700,
+                                        fontSize: 18,
+                                        cursor: "pointer",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        boxShadow: "0 2px 8px #e67e2210",
+                                        transition: "border 0.2s"
+                                    }}
+                                        onClick={() => agregarAReserva(producto)}
+                                    >
+                                        <span role="img" aria-label="reserva" style={{ fontSize: 22 }}>📦</span>
                                     </button>
                                 </div>
                             </div>

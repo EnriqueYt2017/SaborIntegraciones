@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 // eslint-disable-next-line no-unused-vars
 import axios from 'axios';
 import React, { useEffect, useState } from 'react';
@@ -9,6 +10,7 @@ function Home() {
     const [user, setUser] = useState(null);
     const [menuVisible, setMenuVisible] = useState(false);
     const navigate = useNavigate();
+    const [productosDestacados, setProductosDestacados] = useState([]);
 
 useEffect(() => {
     const userData = localStorage.getItem("user");
@@ -27,6 +29,23 @@ useEffect(() => {
         }
     }
 }, [navigate]);
+
+    // Obtener productos y seleccionar 3 aleatorios
+    useEffect(() => {
+        axios.get('/api/productos') // Ajusta la ruta según tu backend
+            .then(res => {
+                const productos = res.data;
+                // Seleccionar 3 productos aleatorios
+                const seleccionados = productos
+                    .sort(() => 0.5 - Math.random())
+                    .slice(0, 3);
+                setProductosDestacados(seleccionados);
+            })
+            .catch(err => {
+                setProductosDestacados([]);
+            });
+    }, []);
+
     const cerrarSesion = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
@@ -166,6 +185,8 @@ useEffect(() => {
             </div>
 
             {/* Sobre Nosotros */}
+            
+            {/* Sobre Nosotros */}
             <div className="containerss" style={{ margin: "2.5rem 0 1.5rem 0", textAlign: "center" }}>
                 <h2 style={{ fontWeight: 700, color: "#212529", letterSpacing: 1 }}>Sobre Nosotros</h2>
             </div>
@@ -206,9 +227,20 @@ useEffect(() => {
                 }}>
                     <h4 style={{ textAlign: "center", fontWeight: 600, color: "#28a745" }}>Productos Destacados</h4>
                     <ul style={{ listStyle: "none", padding: 0, margin: 0, fontSize: "1.05rem", color: "#444" }}>
-                        <li style={{ margin: "0.5rem 0", padding: "0.5rem", borderBottom: "1px solid #eee" }}>Producto 1</li>
-                        <li style={{ margin: "0.5rem 0", padding: "0.5rem", borderBottom: "1px solid #eee" }}>Producto 2</li>
-                        <li style={{ margin: "0.5rem 0", padding: "0.5rem" }}>Producto 3</li>
+                        {productosDestacados.length === 0 && (
+                            <li style={{ margin: "0.5rem 0", padding: "0.5rem" }}>Cargando...</li>
+                        )}
+                        {productosDestacados.map(producto => (
+                            <li key={producto.id} style={{ display: "flex", alignItems: "center", margin: "0.5rem 0", padding: "0.5rem", borderBottom: "1px solid #eee" }}>
+                                {/* Usa producto.icono si tienes, si no, un icono genérico */}
+                                <img
+                                    src={producto.icono || "https://img.icons8.com/fluency/48/fast-moving-consumer-goods.png"}
+                                    alt={producto.nombre}
+                                    style={{ width: 32, height: 32, marginRight: 12 }}
+                                />
+                                <span>{producto.nombre}</span>
+                            </li>
+                        ))}
                     </ul>
                 </div>
             </div>

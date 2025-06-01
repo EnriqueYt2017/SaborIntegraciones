@@ -5,7 +5,9 @@
     "dotenv": "^16.5.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
+    "nodemailer": "^7.0.3",
     "oracledb": "^6.8.0",
+    "pdfkit": "^0.17.1",
     "transbank-sdk": "^6.0.0"
   }
 }

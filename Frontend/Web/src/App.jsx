@@ -11,6 +11,7 @@ import Inicio from "./Components/Dashboard/Inicio";
 import Carrito from "./Components/Carrito/carrito";
 import Return from "./Components/Carrito/Return";
 import Seguimiento from "./Components/Pedidos/Seguimiento";
+import Reserva from "./Components/Productos/Reserva";
 
 const App = () => {
 
@@ -30,6 +31,7 @@ const App = () => {
                 {/* 🔹 Rutas de productos y servicios */}
                 <Route path="/productos" element={<Productos />} />
                 <Route path="/servicios" element={<Servicios />} />
+                <Route path="/reserva" element={<Reserva />} />
                 {/* 🔹 Dashboard */}
                 <Route path="/dashboard/inicio" element={<Inicio />} />
                 
