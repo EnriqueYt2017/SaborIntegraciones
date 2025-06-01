@@ -432,6 +432,23 @@ app.delete("/productos/:id", async (req, res) => {
 });
 
 //PEDIDOS
+app.get("/pedidos", async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT * FROM pedidos`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    res.json(result.rows);
+  } catch (error) {
+    res.status(500).json({ error: "Error al obtener pedidos" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
 app.post("/pedidos", async (req, res) => {
   const { numero_orden, rut, total, direccion, observaciones } = req.body;
   let connection;
@@ -474,6 +491,24 @@ app.get("/pedidos/:numero_orden", async (req, res) => {
   }
 });
 
+app.put("/pedidos/:numero_orden/estado", async (req, res) => {
+    const numero_orden = req.params.numero_orden;
+    const { estado } = req.body;
+    let connection;
+    try {
+        connection = await oracledb.getConnection(dbConfig);
+        await connection.execute(
+            `UPDATE pedidos SET estado = :estado WHERE numero_orden = :numero_orden`,
+            [estado, numero_orden],
+            { autoCommit: true }
+        );
+        res.json({ mensaje: "Estado actualizado" });
+    } catch (error) {
+        res.status(500).json({ error: "No se pudo actualizar el estado" });
+    } finally {
+        if (connection) await connection.close();
+    }
+});
 
 
 app.post("/enviar-voucher-reserva", async (req, res) => {
@@ -517,10 +552,8 @@ app.post("/enviar-voucher-reserva", async (req, res) => {
     }
   });
 
-  // --- DISEÑO PROFESIONAL DEL PDF ---
 
-  // Header con degradado verde-azul y logo
-  // Simular degradado dibujando rectángulos de diferentes tonos
+
   const headerHeight = 100;
   for (let i = 0; i < headerHeight; i++) {
     // Interpolar color entre #43e97b (verde) y #38f9d7 (azul claro)
@@ -623,6 +656,133 @@ app.post("/enviar-voucher-reserva", async (req, res) => {
 
   doc.end();
 });
+
+
+
+
+//CONTACTENOS
+app.post("/contactenos", async (req, res) => {
+  const { nombre, correo, mensaje } = req.body;
+  const numeroSolicitud = Date.now(); // Usamos timestamp como número único
+
+  // 1. Guardar en la base de datos
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      `INSERT INTO Contactenos (numerosolicitud, nombre, correo, mensaje)
+             VALUES (:numerosolicitud, :nombre, :correo, :mensaje)`,
+      [numeroSolicitud, nombre, correo, mensaje],
+      { autoCommit: true }
+    );
+  } catch (err) {
+    console.error("Error al guardar en Contactenos:", err);
+    return res.status(500).json({ error: "No se pudo guardar la consulta" });
+  } finally {
+    if (connection) await connection.close();
+  }
+
+  // 2. Configura tu transportador
+  let transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: "esancchezp2005@gmail.com",
+      pass: "FAQF CZRX TKOB QCNL"
+    }
+  });
+
+  // 3. Correos
+  const adminMail = {
+    from: '"Contacto Web" <TU_CORREO@gmail.com>',
+    to: "esancchezp2005@gmail.com",
+    subject: `Nueva consulta #${numeroSolicitud}`,
+    html: `
+            <h2>Nueva consulta recibida</h2>
+            <b>Número de solicitud:</b> ${numeroSolicitud}<br>
+            <b>Nombre:</b> ${nombre}<br>
+            <b>Email:</b> ${correo}<br>
+            <b>Mensaje:</b><br>
+            <pre>${mensaje}</pre>
+            <br>
+            <a href="mailto:${correo}?subject=Respuesta a tu consulta #${numeroSolicitud}">Responder a este usuario</a>
+        `
+  };
+
+  const userMail = {
+    from: '"Sabor Integraciones" <esancchezp2005@gmail.com>',
+    to: correo,
+    subject: `Hemos recibido tu consulta (#${numeroSolicitud})`,
+    html: `
+            <h2>¡Gracias por contactarnos!</h2>
+            <p>Hemos recibido tu mensaje y te responderemos pronto.</p>
+            <b>Número de solicitud:</b> ${numeroSolicitud}<br>
+            <b>Tu mensaje:</b><br>
+            <pre>${mensaje}</pre>
+            <br>
+            <p>Si tienes más dudas, responde a este correo.</p>
+        `
+  };
+
+  try {
+    await transporter.sendMail(adminMail);
+    await transporter.sendMail(userMail);
+    res.json({ ok: true, numeroSolicitud });
+  } catch (err) {
+    console.error("Error enviando correos:", err);
+    res.status(500).json({ error: "No se pudo enviar el mensaje" });
+  }
+});
+
+//COMENTARIOS
+// Obtener comentarios (ordenados por fecha)
+app.get("/api/comentarios", async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT * FROM Comentarios ORDER BY fecha_publicacion DESC`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT } // <-- Agrega esto
+    );
+    res.json(result.rows.map(row => ({
+      id_comentario: row.ID_COMENTARIO,
+      valoracion: row.VALORACION,
+      fecha_publicacion: row.FECHA_PUBLICACION,
+      texto: row.TEXTO
+    })));
+  } catch (err) {
+    console.error("Error al obtener comentarios:", err);
+    res.status(500).json({ error: "No se pudieron obtener los comentarios" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Guardar nuevo comentario
+app.post("/api/comentarios", async (req, res) => {
+    const { valoracion, texto } = req.body;
+    const fecha_publicacion = new Date();
+    const id_comentario = Date.now();
+
+    let connection;
+    try {
+        connection = await oracledb.getConnection(dbConfig);
+        await connection.execute(
+            `INSERT INTO Comentarios (id_comentario, valoracion, fecha_publicacion, texto)
+             VALUES (:id_comentario, :valoracion, :fecha_publicacion, :texto)`,
+            [id_comentario, valoracion, fecha_publicacion, texto],
+            { autoCommit: true }
+        );
+        // Opcional: guardar el nombre en otra tabla o asociar con usuario si tienes login
+        res.json({ ok: true });
+    } catch (err) {
+        console.error("Error al guardar comentario:", err);
+        res.status(500).json({ error: "No se pudo guardar el comentario" });
+    } finally {
+        if (connection) await connection.close();
+    }
+});
+
 /*FIN CODIGO */
 app.get("/", (req, res) => {
   res.send("¡Servidor funcionando en el puerto 5000!");

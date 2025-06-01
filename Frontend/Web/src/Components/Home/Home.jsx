@@ -11,24 +11,35 @@ function Home() {
     const [menuVisible, setMenuVisible] = useState(false);
     const navigate = useNavigate();
     const [productosDestacados, setProductosDestacados] = useState([]);
+    const [comentarios, setComentarios] = useState([]);
+    const [nuevoComentario, setNuevoComentario] = useState("");
+    const [valoracion, setValoracion] = useState(5);
+    const [comentarioEnviado, setComentarioEnviado] = useState(false);
 
-useEffect(() => {
-    const userData = localStorage.getItem("user");
+    useEffect(() => {
+        const userData = localStorage.getItem("user");
 
-    if (userData && userData !== "undefined" && userData !== "{}" && userData !== "null") {
-        try {
-            const parsedUser = JSON.parse(userData);
-            if (parsedUser && Object.keys(parsedUser).length > 0) {
-                setUser(parsedUser);
-            } else {
-                navigate("/login"); // Redirige si el usuario es inválido
+        if (userData && userData !== "undefined" && userData !== "{}" && userData !== "null") {
+            try {
+                const parsedUser = JSON.parse(userData);
+                if (parsedUser && Object.keys(parsedUser).length > 0) {
+                    setUser(parsedUser);
+                } else {
+                    navigate("/login"); // Redirige si el usuario es inválido
+                }
+            } catch (error) {
+                console.error("Error al parsear usuario:", error);
+                navigate("/login"); // Redirige si hay error de parseo
             }
-        } catch (error) {
-            console.error("Error al parsear usuario:", error);
-            navigate("/login"); // Redirige si hay error de parseo
         }
-    }
-}, [navigate]);
+
+    }, [navigate]);
+
+    useEffect(() => {
+         axios.get('http://localhost:5000/api/comentarios')
+            .then(res => setComentarios(res.data))
+            .catch(() => setComentarios([]));
+    }, []);
 
     // Obtener productos y seleccionar 3 aleatorios
     useEffect(() => {
@@ -44,7 +55,8 @@ useEffect(() => {
             .catch(err => {
                 setProductosDestacados([]);
             });
-    }, []);
+    },
+        []);
 
     const cerrarSesion = () => {
         localStorage.removeItem("token");
@@ -52,6 +64,34 @@ useEffect(() => {
         setUser(null); // ✅ Limpia el estado
         navigate("/login"); // ✅ Redirige al login
     };
+    // Enviar comentario
+    const enviarComentario = async () => {
+        if (!nuevoComentario.trim()) return;
+        try {
+            await axios.post('http://localhost:5000/api/comentarios', {
+                valoracion,
+                texto: nuevoComentario
+            });
+            setNuevoComentario("");
+            setValoracion(5);
+            setComentarioEnviado(true);
+            // Recargar comentarios
+            const res = await axios.get('http://localhost:5000/api/comentarios');
+            setComentarios(res.data);
+            setTimeout(() => setComentarioEnviado(false), 2000);
+        } catch (err) {
+            alert("No se pudo enviar el comentario.");
+        }
+    };
+
+    // Renderizar estrellas
+    const renderStars = (count) => (
+        <span>
+            {[1, 2, 3, 4, 5].map(i =>
+                <span key={i} style={{ color: i <= count ? "#ffc107" : "#e0e0e0", fontSize: 22 }}>★</span>
+            )}
+        </span>
+    );
 
     return (
         <div>
@@ -112,16 +152,16 @@ useEffect(() => {
                             </>
                         )}
                         <li className="nav-item">
-                            <a href="#" className="nav-link">
+                            <a href="carrito" className="nav-link">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-cart" viewBox="0 0 16 16">
                                     <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l1.313 7h8.17l1.313-7zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2" />
                                 </svg>
                             </a>
                         </li>
-                        <li className="nav-item"><a href="/Home" className="nav-link">Inicio</a></li>
+                        <li className="nav-item"><a href="/#" className="nav-link">Inicio</a></li>
                         <li className="nav-item"><a href="/productos" className="nav-link">Productos</a></li>
                         <li className="nav-item"><a href="/servicios" className="nav-link">Servicios</a></li>
-                        <li className="nav-item"><a href="#" className="nav-link">Reservas</a></li>
+                        <li className="nav-item"><a href="/reserva" className="nav-link">Reservas</a></li>
                         <li className="nav-item"><a href="/contactenos" className="nav-link">Contáctenos</a></li>
                     </ul>
                 </nav>
@@ -185,7 +225,7 @@ useEffect(() => {
             </div>
 
             {/* Sobre Nosotros */}
-            
+
             {/* Sobre Nosotros */}
             <div className="containerss" style={{ margin: "2.5rem 0 1.5rem 0", textAlign: "center" }}>
                 <h2 style={{ fontWeight: 700, color: "#212529", letterSpacing: 1 }}>Sobre Nosotros</h2>
@@ -420,6 +460,7 @@ useEffect(() => {
                     <span style={{ fontWeight: 500, textAlign: "center", color: "#6f42c1" }}>Reserva en tienda</span>
                 </div>
             </div>
+
             {/* Comentarios */}
             <div className="containerss" style={{ textAlign: "center" }}>
                 <h2 style={{ fontWeight: 700, color: "#212529" }}>Comentarios</h2>
@@ -433,24 +474,26 @@ useEffect(() => {
                 marginBottom: "2rem"
             }}>
                 <div className="carousel-inner">
-                    <div className="carousel-item active">
-                        <div style={{ padding: "2rem", textAlign: "center" }}>
-                            <p style={{ fontStyle: "italic", color: "#444", fontSize: "1.1rem" }}>"Excelente atención y productos de calidad. ¡Recomendado!"</p>
-                            <span style={{ fontWeight: 500, color: "#007bff" }}>- Juan Pérez</span>
+                    {comentarios.length === 0 && (
+                        <div className="carousel-item active">
+                            <div style={{ padding: "2rem", textAlign: "center" }}>
+                                <p style={{ fontStyle: "italic", color: "#444", fontSize: "1.1rem" }}>No hay comentarios aún.</p>
+                            </div>
                         </div>
-                    </div>
-                    <div className="carousel-item">
-                        <div style={{ padding: "2rem", textAlign: "center" }}>
-                            <p style={{ fontStyle: "italic", color: "#444", fontSize: "1.1rem" }}>"La entrega fue rápida y el producto llegó en perfectas condiciones."</p>
-                            <span style={{ fontWeight: 500, color: "#28a745" }}>- María Gómez</span>
+                    )}
+                    {comentarios.map((comentario, idx) => (
+                        <div className={`carousel-item${idx === 0 ? " active" : ""}`} key={comentario.id_comentario}>
+                            <div style={{ padding: "2rem", textAlign: "center" }}>
+                                <div>{renderStars(comentario.valoracion)}</div>
+                                <p style={{ fontStyle: "italic", color: "#444", fontSize: "1.1rem", margin: "12px 0" }}>
+                                    "{comentario.texto}"
+                                </p>
+                                <span style={{ fontWeight: 500, color: "#007bff" }}>
+                                    - Anónimo
+                                </span>
+                            </div>
                         </div>
-                    </div>
-                    <div className="carousel-item">
-                        <div style={{ padding: "2rem", textAlign: "center" }}>
-                            <p style={{ fontStyle: "italic", color: "#444", fontSize: "1.1rem" }}>"Gran variedad de productos y precios accesibles."</p>
-                            <span style={{ fontWeight: 500, color: "#ffc107" }}>- Carlos Ramírez</span>
-                        </div>
-                    </div>
+                    ))}
                 </div>
                 <button className="carousel-control-prev" type="button" data-bs-target="#carouselComentarios" data-bs-slide="prev">
                     <span className="carousel-control-prev-icon" aria-hidden="true"></span>
@@ -463,9 +506,25 @@ useEffect(() => {
             </div>
             {user && (
                 <div style={{ maxWidth: 600, margin: "2rem auto", display: "flex", alignItems: "center", gap: "1rem" }}>
+                    <div>
+                        {/* Selector de estrellas */}
+                        {[1, 2, 3, 4, 5].map(i =>
+                            <span
+                                key={i}
+                                style={{
+                                    color: i <= valoracion ? "#ffc107" : "#e0e0e0",
+                                    fontSize: 28,
+                                    cursor: "pointer"
+                                }}
+                                onClick={() => setValoracion(i)}
+                            >★</span>
+                        )}
+                    </div>
                     <input
                         type="text"
                         placeholder="Añadir un comentario"
+                        value={nuevoComentario}
+                        onChange={e => setNuevoComentario(e.target.value)}
                         style={{
                             flex: 1,
                             padding: "0.75rem 1rem",
@@ -485,14 +544,15 @@ useEffect(() => {
                             fontSize: "1rem",
                             cursor: "pointer"
                         }}
+                        onClick={enviarComentario}
                     >
                         Enviar
                     </button>
+                    {comentarioEnviado && (
+                        <span style={{ color: "#43e97b", marginLeft: 8 }}>¡Gracias por tu comentario!</span>
+                    )}
                 </div>
             )}
-            <div>
-
-            </div>
             {/* Footer */}
             <footer style={{
                 background: "#212529",

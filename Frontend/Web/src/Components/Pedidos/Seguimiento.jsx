@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 
 const Seguimiento = () => {
-    const [numeroOrden, setNumeroOrden] = useState("");
     const [pedido, setPedido] = useState(null);
     const [error, setError] = useState("");
+    const params = new URLSearchParams(window.location.search);
+    const numeroOrdenInicial = params.get("numero_orden") || "";
+    const [numeroOrden, setNumeroOrden] = useState(numeroOrdenInicial);
 
     const handleBuscar = async (e) => {
         e.preventDefault();

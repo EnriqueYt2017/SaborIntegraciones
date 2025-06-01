@@ -52,30 +52,53 @@ const buttonStyle = {
 function Contactenos() {
     const [user, setUser] = useState(null);
     const [menuVisible, setMenuVisible] = useState(false);
+    const [nombre, setNombre] = useState("");
+    const [correo, setCorreo] = useState("");
+    const [mensaje, setMensaje] = useState("");
+    const [enviado, setEnviado] = useState(false);
+    const [numeroSolicitud, setNumeroSolicitud] = useState("");
     const navigate = useNavigate();
 
     useEffect(() => {
         const userData = localStorage.getItem("user");
-
         if (userData && userData !== "undefined" && userData !== "{}" && userData !== "null") {
             try {
                 const parsedUser = JSON.parse(userData);
                 if (parsedUser && Object.keys(parsedUser).length > 0) {
                     setUser(parsedUser);
                 } else {
-                    navigate("/login"); // Redirige si el usuario es inválido
+                    navigate("/login");
                 }
             } catch (error) {
                 console.error("Error al parsear usuario:", error);
-                navigate("/login"); // Redirige si hay error de parseo
+                navigate("/login");
             }
         }
     }, [navigate]);
+
     const cerrarSesion = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        setUser(null); // ✅ Limpia el estado
-        navigate("/login"); // ✅ Redirige al login
+        setUser(null);
+        navigate("/login");
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        try {
+            const res = await axios.post("http://localhost:5000/contactenos", {
+                nombre,
+                correo,
+                mensaje
+            });
+            setNumeroSolicitud(res.data.numeroSolicitud);
+            setEnviado(true);
+            setNombre("");
+            setCorreo("");
+            setMensaje("");
+        } catch (err) {
+            alert("No se pudo enviar el mensaje. Intenta nuevamente.");
+        }
     };
     return (
         <div>
@@ -136,16 +159,16 @@ function Contactenos() {
                             </>
                         )}
                         <li className="nav-item">
-                            <a href="#" className="nav-link">
+                            <a href="/carrito" className="nav-link">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-cart" viewBox="0 0 16 16">
                                     <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l1.313 7h8.17l1.313-7zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2" />
                                 </svg>
                             </a>
                         </li>
                         <li className="nav-item"><a href="/Home" className="nav-link">Inicio</a></li>
-                        <li className="nav-item"><a href="#" className="nav-link">Productos</a></li>
-                        <li className="nav-item"><a href="#" className="nav-link">Servicios</a></li>
-                        <li className="nav-item"><a href="#" className="nav-link">Reservas</a></li>
+                        <li className="nav-item"><a href="/productos" className="nav-link">Productos</a></li>
+                        <li className="nav-item"><a href="/servicios" className="nav-link">Servicios</a></li>
+                        <li className="nav-item"><a href="/reservas" className="nav-link">Reservas</a></li>
                         <li className="nav-item"><a href="/contactenos" className="nav-link">Contáctenos</a></li>
                     </ul>
                 </nav>
@@ -161,6 +184,7 @@ function Contactenos() {
                     alignItems: "stretch"
                 }}>
                     {/* Formulario a la izquierda */}
+                    {/* Formulario a la izquierda */}
                     <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
                         <div style={cardStyle}>
                             <img
@@ -173,28 +197,39 @@ function Contactenos() {
                                 ¿Tienes alguna pregunta, sugerencia o quieres colaborar con nosotros? <br />
                                 ¡Déjanos tu mensaje y te responderemos pronto!
                             </p>
-                            <form>
+                            <form onSubmit={handleSubmit}>
                                 <input
                                     style={inputStyle}
                                     type="text"
                                     placeholder="Nombre"
+                                    value={nombre}
+                                    onChange={e => setNombre(e.target.value)}
                                     required
                                 />
                                 <input
                                     style={inputStyle}
                                     type="email"
                                     placeholder="Correo electrónico"
+                                    value={correo}
+                                    onChange={e => setCorreo(e.target.value)}
                                     required
                                 />
                                 <textarea
                                     style={{ ...inputStyle, minHeight: 80, resize: "vertical" }}
                                     placeholder="Tu mensaje"
+                                    value={mensaje}
+                                    onChange={e => setMensaje(e.target.value)}
                                     required
                                 />
                                 <button type="submit" style={buttonStyle}>
                                     Enviar mensaje
                                 </button>
                             </form>
+                            {enviado && (
+                                <div style={{ color: "#43e97b", marginTop: 16 }}>
+                                    ¡Mensaje enviado! Tu número de solicitud es <b>{numeroSolicitud}</b>. Revisa tu correo.
+                                </div>
+                            )}
                         </div>
                     </div>
                     { /* Mapa a la derecha */}
