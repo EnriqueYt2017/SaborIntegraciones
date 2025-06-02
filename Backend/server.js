@@ -402,7 +402,191 @@ app.post("/productos", async (req, res) => {
   }
 });
 
+//HISTORIAL DE COMPRAS
+app.get("/api/historial", async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT id_historial, fecha_transaccion, metodo_de_pago, monto, descripcion_transaccion, n_orden, rut FROM Historial`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    // Adaptar nombres de columnas para el frontend
+    const historial = result.rows.map(row => ({
+      id_historial: row.ID_HISTORIAL || row.id_historial,
+      fecha_transaccion: row.FECHA_TRANSACCION || row.fecha_transaccion,
+      metodo_de_pago: row.METODO_DE_PAGO || row.metodo_de_pago,
+      monto: row.MONTO || row.monto,
+      descripcion_transaccion: row.DESCRIPCION_TRANSACCION || row.descripcion_transaccion,
+      n_orden: row.N_ORDEN || row.n_orden,
+      rut: row.RUT || row.rut
+    }));
+    res.json(historial);
+  } catch (err) {
+    console.error("Error al obtener historial:", err);
+    res.status(500).json({ error: "No se pudo obtener el historial" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
 
+//PLANES
+//ENTRENAMIENTO
+app.get("/api/planes-entrenamiento", async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT ID_PLAN_ENTRENAMIENTO, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, FRECUENCIA, DURACION, NIVEL, TIPO, OBJETIVO, RUT FROM PLAN_ENTRENAMIENTO`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error al obtener planes de entrenamiento:", err);
+    res.status(500).json({ error: "No se pudieron obtener los planes" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.post("/api/planes-entrenamiento", async (req, res) => {
+  let connection;
+  try {
+    const {
+      NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, FRECUENCIA,
+      DURACION, NIVEL, TIPO, OBJETIVO, RUT
+    } = req.body;
+
+    connection = await oracledb.getConnection(dbConfig);
+
+    // Obtener el siguiente ID
+    const result = await connection.execute(
+      `SELECT NVL(MAX(ID_PLAN_ENTRENAMIENTO),0)+1 AS NEXT_ID FROM PLAN_ENTRENAMIENTO`
+    );
+    const nextId = result.rows[0].NEXT_ID;
+
+    await connection.execute(
+      `INSERT INTO PLAN_ENTRENAMIENTO (
+    ID_PLAN_ENTRENAMIENTO, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, FRECUENCIA, DURACION, NIVEL, TIPO, OBJETIVO, RUT
+  ) VALUES (
+    SEQ_PLAN_ENTRENAMIENTO.NEXTVAL, :NOMBRE, :DESCRIPCION, TO_DATE(:FECHAINICIO, 'YYYY-MM-DD'), TO_DATE(:FECHAFIN, 'YYYY-MM-DD'), :FRECUENCIA, :DURACION, :NIVEL, :TIPO, :OBJETIVO, :RUT
+  )`,
+      {
+        NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, FRECUENCIA,
+        DURACION: Number(DURACION),
+        NIVEL, TIPO, OBJETIVO,
+        RUT: Number(RUT)
+      },
+      { autoCommit: true }
+    );
+
+    res.status(201).json({
+      ID_PLAN_ENTRENAMIENTO: nextId,
+      NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, FRECUENCIA,
+      DURACION, NIVEL, TIPO, OBJETIVO, RUT
+    });
+  } catch (err) {
+    console.error("Error al agregar plan de entrenamiento:", err);
+    res.status(500).json({ error: "No se pudo agregar el plan" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+//NUTRICION
+app.get("/api/planes-nutricion", async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT ID_PLAN_NUTRICION, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS, MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT FROM PLAN_NUTRICION`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error al obtener planes de nutrición:", err);
+    res.status(500).json({ error: "No se pudieron obtener los planes" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.post("/api/planes-nutricion", async (req, res) => {
+  let connection;
+  try {
+    const {
+      NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS,
+      MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT
+    } = req.body;
+
+    connection = await oracledb.getConnection(dbConfig);
+
+    await connection.execute(
+      `INSERT INTO PLAN_NUTRICION (
+        ID_PLAN_NUTRICION, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN,
+        CALORIAS_DIARIAS, MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT
+      ) VALUES (
+        SEQ_PLAN_NUTRICION.NEXTVAL, :NOMBRE, :DESCRIPCION,
+        TO_DATE(:FECHAINICIO, 'YYYY-MM-DD'), TO_DATE(:FECHAFIN, 'YYYY-MM-DD'),
+        :CALORIAS_DIARIAS, :MACRONUTRIENTES, :TIPODIETA,
+        :OBJETIVO, :OBSERVACIONES, :RUT
+      )`,
+      {
+        NOMBRE,
+        DESCRIPCION,
+        FECHAINICIO: FECHAINICIO ? FECHAINICIO.substring(0, 10) : null,
+        FECHAFIN: FECHAFIN ? FECHAFIN.substring(0, 10) : null,
+        CALORIAS_DIARIAS: Number(CALORIAS_DIARIAS),
+        MACRONUTRIENTES,
+        TIPODIETA,
+        OBJETIVO,
+        OBSERVACIONES,
+        RUT: Number(RUT)
+      },
+      { autoCommit: true }
+    );
+
+    res.status(201).json({ mensaje: "Plan de nutrición agregado correctamente" });
+  } catch (err) {
+    console.error("Error al agregar plan de nutrición:", err);
+    res.status(500).json({ error: "No se pudo agregar el plan" });
+  }
+  finally {
+    if (connection) await connection.close();
+  }
+});
+
+//SUSCRIPCION
+app.post("/api/suscripciones", async (req, res) => {
+  const { ID_PLAN, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, OBJETIVO, RUT } = req.body;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      `INSERT INTO SUSCRIPCIONES (ID_PLAN, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, OBJETIVO, RUT)
+       VALUES (:ID_PLAN, :NOMBRE, :DESCRIPCION, TO_DATE(:FECHAINICIO, 'YYYY-MM-DD'), TO_DATE(:FECHAFIN, 'YYYY-MM-DD'), :OBJETIVO, :RUT)`,
+      {
+        ID_PLAN,
+        NOMBRE,
+        DESCRIPCION,
+        FECHAINICIO,
+        FECHAFIN,
+        OBJETIVO,
+        RUT
+      },
+      { autoCommit: true }
+    );
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    console.error("Error al guardar suscripción:", err);
+    res.status(500).json({ error: "No se pudo guardar la suscripción" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
 
 //DASHBOARD
 //Clientes

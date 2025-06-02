@@ -1,4 +1,3 @@
-import React from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Home from "./Components/Home/Home";
 import Login from "./Components/Login-Register/login";
@@ -12,6 +11,8 @@ import Carrito from "./Components/Carrito/carrito";
 import Return from "./Components/Carrito/Return";
 import Seguimiento from "./Components/Pedidos/Seguimiento";
 import Reserva from "./Components/Productos/Reserva";
+import Entrenamiento from "./Components/Planes/Entrenamiento"
+import Nutricion from "./Components/Planes/Nutricion";
 
 const App = () => {
 
@@ -25,7 +26,7 @@ const App = () => {
                 <Route path="/register" element={<Register />} />
                 <Route path="/perfil" element={<Perfil />} />
                 <Route path="/contactenos" element={<Contactenos />} />
-                <Route path="/carrito" element={<Carrito/>} />
+                <Route path="/carrito" element={<Carrito />} />
                 <Route path="/return" element={<Return />} />
                 <Route path="/seguimiento" element={<Seguimiento />} />
                 {/* 🔹 Rutas de productos y servicios */}
@@ -34,7 +35,13 @@ const App = () => {
                 <Route path="/reserva" element={<Reserva />} />
                 {/* 🔹 Dashboard */}
                 <Route path="/dashboard/inicio" element={<Inicio />} />
-                
+                {/* 🔹 Planes */}
+                <Route path="/planes/entrenamiento" element={<Entrenamiento />} />
+                <Route path="/planes/nutricion" element={<Nutricion />} />
+                {/* 🔹 Rutas de administración */}
+                {/* Aquí puedes agregar rutas para la administración, como crear productos, editar productos, etc. */}
+
+
                 {/* 🔹 Rutas protegidas */}
                 {/* 🔹 Página no encontrada */}
                 <Route path="*" element={<h1>404 - Página no encontrada</h1>} />

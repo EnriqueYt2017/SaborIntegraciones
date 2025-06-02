@@ -31,6 +31,7 @@ router.post("/create", async (req, res) => {
 });
 
 // Confirmar pago y guardar pedido
+// ...existing code...
 router.post("/commit", async (req, res) => {
   const { token_ws, rut, direccion, observaciones, total } = req.body;
   try {
@@ -43,15 +44,50 @@ router.post("/commit", async (req, res) => {
         console.log("Intentando guardar pedido:", { numero_orden, rut, total, direccion, observaciones });
 
         connection = await oracledb.getConnection(dbConfig);
+
+        const pedidoExistente = await connection.execute(
+          `SELECT 1 FROM pedidos WHERE numero_orden = :numero_orden`,
+          [numero_orden],
+          { outFormat: oracledb.OUT_FORMAT_OBJECT }
+        );
+
+        if (pedidoExistente.rows.length === 0) {
+          // Solo inserta si no existe
+          await connection.execute(
+            `INSERT INTO pedidos (id_pedido, numero_orden, rut, fecha_pedido, estado, total, direccion, observaciones)
+     VALUES (PEDIDOS_SEQ.NEXTVAL, :numero_orden, :rut, SYSDATE, 'Sin enviar', :total, :direccion, :observaciones)`,
+            [numero_orden, rut, total, direccion, observaciones],
+            { autoCommit: true }
+          );
+        }
+
+        // 2. Obtener dvrut del usuario
+        const userResult = await connection.execute(
+          `SELECT dvrut FROM Usuarios WHERE rut = :rut`,
+          [rut],
+          { outFormat: oracledb.OUT_FORMAT_OBJECT }
+        );
+
+        //Guardar historial de transacciones
         await connection.execute(
-          `INSERT INTO pedidos (id_pedido, numero_orden, rut, fecha_pedido, estado, total, direccion, observaciones)
-   VALUES (PEDIDOS_SEQ.NEXTVAL, :numero_orden, :rut, SYSDATE, 'Sin enviar', :total, :direccion, :observaciones)`,
-          [numero_orden, rut, total, direccion, observaciones],
+          `INSERT INTO HISTORIAL (
+    ID_HISTORIAL, FECHA_TRANSACCION, METODO_DE_PAGO, MONTO, DESCRIPCION_TRANSACCION, N_ORDEN, RUT
+  ) VALUES (
+    SEQ_HISTORIAL.NEXTVAL, SYSDATE, :metodo_de_pago, :monto, :descripcion_transaccion, :n_orden, :rut
+  )`,
+          {
+            metodo_de_pago: response.payment_type || "Webpay",
+            monto: Number(total),
+            descripcion_transaccion: `Compra realizada. Autorización: ${response.authorization_code || response.authorizationCode || "N/A"}`,
+            n_orden: String(numero_orden), // ¡Como string!
+            rut: Number(rut)
+          },
           { autoCommit: true }
         );
-        console.log("Pedido guardado correctamente");
+
+        console.log("Pedido y historial guardados correctamente");
       } catch (dbErr) {
-        console.error("Error al guardar pedido:", dbErr);
+        console.error("Error al guardar pedido/historial:", dbErr);
       } finally {
         if (connection) await connection.close();
       }
@@ -62,5 +98,6 @@ router.post("/commit", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+// ...existing code...
 
 module.exports = router;
