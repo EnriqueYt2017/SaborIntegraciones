@@ -3,6 +3,7 @@ import Home from "./Components/Home/Home";
 import Login from "./Components/Login-Register/login";
 import Register from "./Components/Login-Register/Register";
 import Perfil from "./Components/Home/Perfil";
+import Vermas from "./Components/Home/Vermas";
 import Contactenos from "./Components/Home/Contactenos";
 import Servicios from "./Components/Home/Servicios";
 import Productos from "./Components/Productos/Productos";
@@ -11,6 +12,7 @@ import Carrito from "./Components/Carrito/carrito";
 import Return from "./Components/Carrito/Return";
 import Seguimiento from "./Components/Pedidos/Seguimiento";
 import Reserva from "./Components/Productos/Reserva";
+//Planes
 import Entrenamiento from "./Components/Planes/Entrenamiento"
 import Nutricion from "./Components/Planes/Nutricion";
 
@@ -25,6 +27,7 @@ const App = () => {
                 <Route path="/login" element={<Login />} />
                 <Route path="/register" element={<Register />} />
                 <Route path="/perfil" element={<Perfil />} />
+                <Route path="/vermas" element={<Vermas />} />
                 <Route path="/contactenos" element={<Contactenos />} />
                 <Route path="/carrito" element={<Carrito />} />
                 <Route path="/return" element={<Return />} />
@@ -38,9 +41,8 @@ const App = () => {
                 {/* 🔹 Planes */}
                 <Route path="/planes/entrenamiento" element={<Entrenamiento />} />
                 <Route path="/planes/nutricion" element={<Nutricion />} />
-                {/* 🔹 Rutas de administración */}
-                {/* Aquí puedes agregar rutas para la administración, como crear productos, editar productos, etc. */}
 
+                {/* 🔹 Rutas de administración */}
 
                 {/* 🔹 Rutas protegidas */}
                 {/* 🔹 Página no encontrada */}

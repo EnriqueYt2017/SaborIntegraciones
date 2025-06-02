@@ -39,8 +39,13 @@ const handleSubmit = async (e) => {
             console.error("Error: Usuario no encontrado en la respuesta.");
         }
     } catch (err) {
-        console.error("Error en la solicitud:", err);
-    }
+    setError(
+        err.response?.data?.error ||
+        err.response?.data?.mensaje ||
+        "Error al conectar con el servidor"
+    );
+    console.error("Error en la solicitud:", err);
+}
 };
   return (
     <div className="login-container" style={{

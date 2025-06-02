@@ -62,6 +62,15 @@ const Seguimiento = () => {
             const res = await fetch(`http://localhost:5000/pedidos/${numeroOrden}`);
             if (!res.ok) throw new Error("Pedido no encontrado");
             const data = await res.json();
+
+            // Solo mostrar si el RUT coincide con el usuario logeado
+            const rutUsuario = user?.rut || user?.RUT || "";
+            if (String(data.rut) !== String(rutUsuario)) {
+                setError("No tienes permiso para ver este pedido.");
+                setPedido(null);
+                return;
+            }
+
             setPedido(data);
         } catch (err) {
             setError(err.message);
@@ -174,7 +183,15 @@ const Seguimiento = () => {
                                         </button>
                                     </li>
                                     <li>
-                                        <a href="#" className="dropdown-item">Ver más</a>
+                                        <button
+                                            className="dropdown-item"
+                                            onClick={() => navigate("/Dashboard/Inicio")}
+                                        >
+                                            Dashboard
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <a href="/vermas" className="dropdown-item">Ver más</a>
                                     </li>
                                     <li>
                                         <button onClick={cerrarSesion} className="dropdown-item">Cerrar sesión</button>
@@ -210,7 +227,7 @@ const Seguimiento = () => {
                                 </svg>
                             </a>
                         </li>
-                        <li className="nav-item"><a href="/#" className="nav-link">Inicio</a></li>
+                        <li className="nav-item"><a href="/home" className="nav-link">Inicio</a></li>
                         <li className="nav-item"><a href="/productos" className="nav-link">Productos</a></li>
                         <li className="nav-item"><a href="/servicios" className="nav-link">Servicios</a></li>
                         <li className="nav-item"><a href="/reserva" className="nav-link">Reservas</a></li>

@@ -63,7 +63,15 @@ function Servicios() {
                                         </button>
                                     </li>
                                     <li>
-                                        <a href="#" className="dropdown-item">Ver más</a>
+                                        <button
+                                            className="dropdown-item"
+                                            onClick={() => navigate("/Dashboard/Inicio")}
+                                        >
+                                            Dashboard
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <a href="/vermas" className="dropdown-item">Ver más</a>
                                     </li>
                                     <li>
                                         <button onClick={cerrarSesion} className="dropdown-item">Cerrar sesión</button>
@@ -99,7 +107,7 @@ function Servicios() {
                                 </svg>
                             </a>
                         </li>
-                        <li className="nav-item"><a href="/Home" className="nav-link">Inicio</a></li>
+                        <li className="nav-item"><a href="/home" className="nav-link">Inicio</a></li>
                         <li className="nav-item"><a href="/productos" className="nav-link">Productos</a></li>
                         <li className="nav-item"><a href="#" className="nav-link">Servicios</a></li>
                         <li className="nav-item"><a href="/reserva" className="nav-link">Reservas</a></li>
@@ -211,6 +219,7 @@ function Servicios() {
                                 Asesoría profesional y planes personalizados para tu bienestar.
                             </p>
                             <button
+                            onClick={() => navigate("/planes/nutricion")}
                                 style={{
                                     padding: '12px 28px',
                                     background: 'linear-gradient(90deg, #43ea7f 0%, #4caf50 100%)',
@@ -224,7 +233,7 @@ function Servicios() {
                                     transition: 'background 0.2s',
                                 }}
                             >
-                                Contactar Nutricionista
+                                Ver planes
                             </button>
                         </div>
 
@@ -268,6 +277,7 @@ function Servicios() {
                                 Rutinas adaptadas a tus metas y seguimiento profesional.
                             </p>
                             <button
+                            onClick={() => navigate("/planes/entrenamiento")}
                                 style={{
                                     padding: '12px 28px',
                                     background: 'linear-gradient(90deg, #42a5f5 0%, #1976d2 100%)',
@@ -281,7 +291,7 @@ function Servicios() {
                                     transition: 'background 0.2s',
                                 }}
                             >
-                                Solicitar Información
+                                Ver Planes
                             </button>
                         </div>
                     </div>

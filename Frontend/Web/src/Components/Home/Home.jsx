@@ -122,7 +122,15 @@ function Home() {
                                         </button>
                                     </li>
                                     <li>
-                                        <a href="#" className="dropdown-item">Ver más</a>
+                                        <button
+                                            className="dropdown-item"
+                                            onClick={() => navigate("/Dashboard/Inicio")}
+                                        >
+                                            Dashboard
+                                        </button>
+                                    </li>
+                                    <li>
+                                        <a href="/vermas" className="dropdown-item">Ver más</a>
                                     </li>
                                     <li>
                                         <button onClick={cerrarSesion} className="dropdown-item">Cerrar sesión</button>
