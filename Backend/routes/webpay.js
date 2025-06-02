@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { WebpayPlus, Options, IntegrationApiKeys, Environment } = require("transbank-sdk");
 const oracledb = require("oracledb");
-
+const dbConfig = require("../dbConfig");
 
 const options = new Options(
   "597055555532", // Código de comercio de pruebas
@@ -36,22 +36,22 @@ router.post("/commit", async (req, res) => {
   try {
     const response = await transaction.commit(token_ws);
 
-    // Solo guardar si el pago fue exitoso
     if (response.status === "AUTHORIZED" || response.status === "SUCCESS") {
-      // El número de orden real está en response.buy_order
       const numero_orden = response.buy_order;
       let connection;
       try {
+        console.log("Intentando guardar pedido:", { numero_orden, rut, total, direccion, observaciones });
+
         connection = await oracledb.getConnection(dbConfig);
         await connection.execute(
-          `INSERT INTO pedidos (numero_orden, rut, fecha_pedido, estado, total, direccion, observaciones)
-           VALUES (:numero_orden, :rut, SYSDATE, 'Sin enviar', :total, :direccion, :observaciones)`,
+          `INSERT INTO pedidos (id_pedido, numero_orden, rut, fecha_pedido, estado, total, direccion, observaciones)
+   VALUES (PEDIDOS_SEQ.NEXTVAL, :numero_orden, :rut, SYSDATE, 'Sin enviar', :total, :direccion, :observaciones)`,
           [numero_orden, rut, total, direccion, observaciones],
           { autoCommit: true }
         );
+        console.log("Pedido guardado correctamente");
       } catch (dbErr) {
         console.error("Error al guardar pedido:", dbErr);
-        // Puedes decidir si quieres responder error aquí o solo loguear
       } finally {
         if (connection) await connection.close();
       }

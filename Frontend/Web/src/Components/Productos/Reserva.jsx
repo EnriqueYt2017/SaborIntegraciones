@@ -256,6 +256,7 @@ const Reserva = () => {
         };
 
         try {
+            await axios.post("http://localhost:5000/api/reservas", reservaData);
             await axios.post("http://localhost:5000/enviar-voucher-reserva", reservaData);
             setVoucher(reservaData);
             localStorage.setItem("carrito_reserva", JSON.stringify([]));
@@ -532,7 +533,11 @@ const Reserva = () => {
                                 <label style={styles.label}>RUT:</label>
                                 <input
                                     type="text"
-                                    value={usuario?.rut || ""}
+                                    value={
+                                        usuario
+                                            ? `${usuario.rut}`
+                                            : ""
+                                    }
                                     disabled
                                     style={styles.input}
                                 />

@@ -105,7 +105,7 @@ function Contactenos() {
             {/*Navbar */}
             <div className="containers">
                 <nav id="navbar-e" className="navbar bg-body-tertiary px-3">
-                    <a href="#" className="navbar-brand">
+                    <a href="/carrito" className="navbar-brand">
                         <img src={Imagelogo} alt="Logo" className="estilo-logo" />
                     </a>
                     <ul className="nav nav-pills">
@@ -168,12 +168,12 @@ function Contactenos() {
                         <li className="nav-item"><a href="/Home" className="nav-link">Inicio</a></li>
                         <li className="nav-item"><a href="/productos" className="nav-link">Productos</a></li>
                         <li className="nav-item"><a href="/servicios" className="nav-link">Servicios</a></li>
-                        <li className="nav-item"><a href="/reservas" className="nav-link">Reservas</a></li>
+                        <li className="nav-item"><a href="/reserva" className="nav-link">Reservas</a></li>
                         <li className="nav-item"><a href="/contactenos" className="nav-link">Contáctenos</a></li>
                     </ul>
                 </nav>
             </div>
-            {/* Contenido de la página de contacto */}
+            {/* Contenido  */}
             <div style={{ ...backgroundStyle, justifyContent: "center" }}>
                 <div style={{
                     display: "flex",
@@ -183,8 +183,7 @@ function Contactenos() {
                     justifyContent: "center",
                     alignItems: "stretch"
                 }}>
-                    {/* Formulario a la izquierda */}
-                    {/* Formulario a la izquierda */}
+                    {/* Formulario */}
                     <div style={{ flex: 1, display: "flex", alignItems: "center" }}>
                         <div style={cardStyle}>
                             <img
@@ -232,7 +231,7 @@ function Contactenos() {
                             )}
                         </div>
                     </div>
-                    { /* Mapa a la derecha */}
+                    { /* Mapa */}
                     <div style={{
                         flex: 1,
                         display: "flex",

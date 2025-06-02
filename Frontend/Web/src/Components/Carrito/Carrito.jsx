@@ -136,14 +136,17 @@ function Carrito() {
     const [carrito, setCarrito] = useState([]);
     const [esCliente, setEsCliente] = useState(false);
 
+    // ...existing code...
+
     useEffect(() => {
         const carritoGuardado = JSON.parse(localStorage.getItem("carrito")) || [];
         setCarrito(carritoGuardado);
 
         const userData = localStorage.getItem("user");
+        let parsedUser = null;
         if (userData) {
             try {
-                const parsedUser = JSON.parse(userData);
+                parsedUser = JSON.parse(userData);
                 if (parsedUser && Object.keys(parsedUser).length > 0) {
                     setUser(parsedUser);
                 }
@@ -152,20 +155,17 @@ function Carrito() {
             }
         }
 
-        // Validar cliente por rut y dvrut (robusto)
-        if (userData) {
-            const userData = localStorage.getItem("user");
+        // Validar cliente por rut (solo si hay usuario)
+        if (parsedUser && parsedUser.rut) {
             axios.get("http://localhost:5000/clientes")
                 .then(res => {
                     const clientes = res.data;
                     const clean = val => String(val).replace(/^0+/, '').trim();
-                    const userRut = clean(user.rut);
-                    const userDv = clean(user.dvrut);
+                    const userRut = clean(parsedUser.rut);
 
-                    // 🔹 Busca coincidencia exacta con `numero_rut`
+                    // Busca coincidencia exacta con numero_rut
                     const match = clientes.some(c =>
-                        (clean(c.numero_rut ?? c.rut) === userRut) &&
-                        (clean(c.dv_rut ?? c.dvrut) === userDv)
+                        clean(c.numero_rut ?? c.rut) === userRut
                     );
 
                     setEsCliente(match);
@@ -174,9 +174,12 @@ function Carrito() {
                     console.error("Error al validar cliente:", error);
                     setEsCliente(false);
                 });
+        } else {
+            setEsCliente(false);
         }
-
     }, []);
+
+    // ...existing code...
 
     // Calcula el total con descuento si corresponde
     const totalSinDescuento = carrito.reduce((acc, item) => acc + (item.precio * (item.cantidad || 1)), 0);
@@ -194,27 +197,30 @@ function Carrito() {
     };
 
     const pagar = async () => {
-    const montoPagar = total;
-    if (total <= 0) {
-        alert("El carrito está vacío.");
-        return;
-    }
-    const numeroOrden = "order-" + Date.now();
-    localStorage.setItem("numero_orden", numeroOrden); // Guarda el número de orden
-    localStorage.setItem("carrito_backup", localStorage.getItem("carrito"));
-    try {
-        const result = await axios.post("http://localhost:5000/webpay/create", {
-            amount: montoPagar,
-            sessionId: "sess-" + Date.now(),
-            buyOrder: numeroOrden,
-            returnUrl: "http://localhost:5173/return"
-        });
-        window.location.href = result.data.url + "?token_ws=" + result.data.token;
-    } catch (error) {
-        alert("Error al iniciar el pago: " + (error.response?.data?.error || error.message));
-        console.error(error.response?.data || error);
-    }
-};
+        const montoPagar = total;
+        if (total <= 0) {
+            alert("El carrito está vacío.");
+            return;
+        }
+        const numeroOrden = "order-" + Date.now();
+        localStorage.setItem("numero_orden", numeroOrden); // Guarda el número de orden
+        localStorage.setItem("carrito_backup", localStorage.getItem("carrito"));
+        localStorage.setItem("esCliente", esCliente ? "true" : "false");
+        localStorage.setItem("totalSinDescuento", totalSinDescuento);
+        try {
+            const result = await axios.post("http://localhost:5000/webpay/create", {
+                amount: montoPagar,
+                sessionId: "sess-" + Date.now(),
+                buyOrder: numeroOrden,
+                returnUrl: "http://localhost:5173/return"
+            });
+            window.location.href = result.data.url + "?token_ws=" + result.data.token;
+        } catch (error) {
+            alert("Error al iniciar el pago: " + (error.response?.data?.error || error.message));
+            console.error(error.response?.data || error);
+        }
+
+    };
 
     const volverAProductos = () => {
         window.location.href = "/productos";

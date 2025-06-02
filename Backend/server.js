@@ -12,18 +12,15 @@ const { Readable } = require("stream");
 const path = require("path");
 const logo = path.join(__dirname, "routes", "icono-logo.png");
 dotenv.config();
-
+const dbConfig = require("./dbConfig");
 app.use(express.json());
 app.use(cors());
 
 app.use("/webpay", webpayRoutes);
 
 
-const dbConfig = {
-  user: "Base_Datos",
-  password: "Base_Datos",
-  connectString: "localhost:1521/XE"
-};
+
+
 
 app.get("/api/Usuarios", async (req, res) => {
   let connection;
@@ -64,7 +61,125 @@ app.get("/clientes", async (req, res) => {
 });
 
 
+//API DE BLUEEXPRESS y PEDIDOS
+app.get("/pedidos", async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT numero_orden, rut, fecha_pedido, estado, total, direccion, observaciones, tracking_blue FROM pedidos`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error al obtener pedidos:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
 
+app.put("/pedidos/:numero_orden/tracking", async (req, res) => {
+  const numero_orden = req.params.numero_orden;
+  const { tracking_blue } = req.body;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      `UPDATE pedidos SET tracking_blue = :tracking_blue WHERE numero_orden = :numero_orden`,
+      [tracking_blue, numero_orden],
+      { autoCommit: true }
+    );
+    res.json({ mensaje: "Tracking actualizado" });
+  } catch (error) {
+    res.status(500).json({ error: "No se pudo actualizar el tracking" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.put("/pedidos/:numero_orden/estado", async (req, res) => {
+  const numero_orden = req.params.numero_orden;
+  const { estado } = req.body;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      `UPDATE pedidos SET estado = :estado WHERE numero_orden = :numero_orden`,
+      [estado, numero_orden],
+      { autoCommit: true }
+    );
+    res.json({ mensaje: "Estado actualizado" });
+  } catch (error) {
+    res.status(500).json({ error: "No se pudo actualizar el estado" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// POST para simular la creación de envío y guardar tracking
+app.post("/pedidos/:numero_orden/bluex", async (req, res) => {
+  const numero_orden = req.params.numero_orden;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT * FROM pedidos WHERE numero_orden = :numero_orden`,
+      [numero_orden],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Pedido no encontrado" });
+    }
+    // Aquí deberías llamar a la API real de Blue Express y obtener el tracking
+    const tracking_blue = "SIMULADO123456"; // Reemplaza por el real
+
+    await connection.execute(
+      `UPDATE pedidos SET tracking_blue = :tracking_blue WHERE numero_orden = :numero_orden`,
+      [tracking_blue, numero_orden],
+      { autoCommit: true }
+    );
+    res.json({ mensaje: "Envío creado y tracking guardado", tracking_blue });
+  } catch (error) {
+    res.status(500).json({ error: "No se pudo crear el envío Blue Express" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.get("/pedidos/:numero_orden", async (req, res) => {
+  const numero_orden = req.params.numero_orden;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT * FROM pedidos WHERE numero_orden = :numero_orden`,
+      [numero_orden],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Pedido no encontrado" });
+    }
+    // Adaptar nombres de columnas a minúsculas para el frontend
+    const row = result.rows[0];
+    const pedido = {
+      numero_orden: row.NUMERO_ORDEN || row.numero_orden,
+      rut: row.RUT || row.rut,
+      fecha_pedido: row.FECHA_PEDIDO || row.fecha_pedido,
+      estado: row.ESTADO || row.estado,
+      total: row.TOTAL || row.total,
+      direccion: row.DIRECCION || row.direccion,
+      observaciones: row.OBSERVACIONES || row.observaciones,
+      tracking_blue: row.TRACKING_BLUE || row.tracking_blue
+    };
+    res.json(pedido);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
 
 //Registro de Usuario
 app.post("/register", async (req, res) => {
@@ -431,85 +546,51 @@ app.delete("/productos/:id", async (req, res) => {
   }
 });
 
-//PEDIDOS
-app.get("/pedidos", async (req, res) => {
+
+//RESERVAS
+app.post("/api/reservas", async (req, res) => {
+  const { usuario, productos } = req.body;
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
+
+    // Obtén el último id_reserva o usa una secuencia si tienes
     const result = await connection.execute(
-      `SELECT * FROM pedidos`,
-      [],
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      "SELECT NVL(MAX(id_reserva), 0) + 1 AS next_id FROM reserva_producto"
     );
-    res.json(result.rows);
-  } catch (error) {
-    res.status(500).json({ error: "Error al obtener pedidos" });
-  } finally {
-    if (connection) await connection.close();
-  }
-});
-
-app.post("/pedidos", async (req, res) => {
-  const { numero_orden, rut, total, direccion, observaciones } = req.body;
-  let connection;
-  try {
-    connection = await oracledb.getConnection(dbConfig);
-    await connection.execute(
-      `INSERT INTO pedidos (numero_orden, rut, fecha_pedido, estado, total, direccion, observaciones)
-       VALUES (:numero_orden, :rut, SYSDATE, 'Sin enviar', :total, :direccion, :observaciones)`,
-      [numero_orden, rut, total, direccion, observaciones],
-      { autoCommit: true }
-    );
-    res.status(201).json({ mensaje: "Pedido registrado correctamente" });
-  } catch (error) {
-    console.error("Error al registrar pedido:", error);
-    res.status(500).json({ error: "Error al registrar pedido" });
-  } finally {
-    if (connection) await connection.close();
-  }
-});
-
-app.get("/pedidos/:numero_orden", async (req, res) => {
-  const numero_orden = req.params.numero_orden;
-  let connection;
-  try {
-    connection = await oracledb.getConnection(dbConfig);
-    const result = await connection.execute(
-      `SELECT * FROM pedidos WHERE numero_orden = :numero_orden`,
-      [numero_orden],
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
-    );
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: "Pedido no encontrado" });
+    const nextId = result.rows[0].NEXT_ID || result.rows[0].next_id;
+    let dvrut = usuario.dvrut;
+    if (!dvrut) {
+      const userResult = await connection.execute(
+        "SELECT dvrut FROM Usuarios WHERE rut = :rut",
+        [usuario.rut],
+        { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      );
+      dvrut = userResult.rows[0]?.DVRUT || userResult.rows[0]?.dvrut || null;
     }
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error("Error al buscar pedido:", error);
-    res.status(500).json({ error: "Error interno del servidor" });
+    // Inserta cada producto reservado
+    for (const p of productos) {
+      await connection.execute(
+        `INSERT INTO reserva_producto (id_reserva, fecha_reserva, cantidad, rut, dvrut, codigo_producto)
+     VALUES (SEQ_RESERVA.NEXTVAL, SYSDATE, :cantidad, :rut, :dvrut, :codigo_producto)`,
+        [
+          p.cantidad,
+          usuario.rut,
+          usuario.dvrut,
+          p.codigo_producto
+        ],
+        { autoCommit: false }
+      );
+    }
+    await connection.commit();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Error al guardar reserva:", err);
+    res.status(500).json({ error: "No se pudo guardar la reserva" });
   } finally {
     if (connection) await connection.close();
   }
 });
-
-app.put("/pedidos/:numero_orden/estado", async (req, res) => {
-    const numero_orden = req.params.numero_orden;
-    const { estado } = req.body;
-    let connection;
-    try {
-        connection = await oracledb.getConnection(dbConfig);
-        await connection.execute(
-            `UPDATE pedidos SET estado = :estado WHERE numero_orden = :numero_orden`,
-            [estado, numero_orden],
-            { autoCommit: true }
-        );
-        res.json({ mensaje: "Estado actualizado" });
-    } catch (error) {
-        res.status(500).json({ error: "No se pudo actualizar el estado" });
-    } finally {
-        if (connection) await connection.close();
-    }
-});
-
 
 app.post("/enviar-voucher-reserva", async (req, res) => {
   const { numeroReserva, usuario, sucursal, productos, total, fechaReserva, fechaLimite } = req.body;
@@ -760,27 +841,27 @@ app.get("/api/comentarios", async (req, res) => {
 
 // Guardar nuevo comentario
 app.post("/api/comentarios", async (req, res) => {
-    const { valoracion, texto } = req.body;
-    const fecha_publicacion = new Date();
-    const id_comentario = Date.now();
+  const { valoracion, texto } = req.body;
+  const fecha_publicacion = new Date();
+  const id_comentario = Date.now();
 
-    let connection;
-    try {
-        connection = await oracledb.getConnection(dbConfig);
-        await connection.execute(
-            `INSERT INTO Comentarios (id_comentario, valoracion, fecha_publicacion, texto)
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      `INSERT INTO Comentarios (id_comentario, valoracion, fecha_publicacion, texto)
              VALUES (:id_comentario, :valoracion, :fecha_publicacion, :texto)`,
-            [id_comentario, valoracion, fecha_publicacion, texto],
-            { autoCommit: true }
-        );
-        // Opcional: guardar el nombre en otra tabla o asociar con usuario si tienes login
-        res.json({ ok: true });
-    } catch (err) {
-        console.error("Error al guardar comentario:", err);
-        res.status(500).json({ error: "No se pudo guardar el comentario" });
-    } finally {
-        if (connection) await connection.close();
-    }
+      [id_comentario, valoracion, fecha_publicacion, texto],
+      { autoCommit: true }
+    );
+    // Opcional: guardar el nombre en otra tabla o asociar con usuario si tienes login
+    res.json({ ok: true });
+  } catch (err) {
+    console.error("Error al guardar comentario:", err);
+    res.status(500).json({ error: "No se pudo guardar el comentario" });
+  } finally {
+    if (connection) await connection.close();
+  }
 });
 
 /*FIN CODIGO */
