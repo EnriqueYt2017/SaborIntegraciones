@@ -37,7 +37,7 @@ function Productos() {
                 console.error("Error al parsear usuario:", error);
             }
         }
-        axios.get("http://localhost:5000/productos")
+        axios.get("http://localhost:5000/api/productos") // <-- Cambia aquí
             .then(response => {
                 setProductos(response.data);
                 const cats = Array.from(new Set(response.data.map(p => p.categoria).filter(Boolean)));
@@ -71,15 +71,23 @@ function Productos() {
 
     // Función para agregar al carrito
     const agregarAlCarrito = (producto) => {
-        // Obtiene el carrito actual o uno vacío
+        if (!producto.stock || producto.stock <= 0) {
+            alert("No hay stock disponible para este producto.");
+            return;
+        }
         const carrito = JSON.parse(localStorage.getItem("carrito")) || [];
-        // Busca si el producto ya está en el carrito
         const index = carrito.findIndex(item => item.codigo_producto === producto.codigo_producto);
+
+        const cantidadEnCarrito = index >= 0 ? carrito[index].cantidad : 0;
+
+        if (cantidadEnCarrito >= producto.stock) {
+            alert("No hay más stock disponible para este producto.");
+            return;
+        }
+
         if (index >= 0) {
-            // Si ya está, suma la cantidad
             carrito[index].cantidad += 1;
         } else {
-            // Si no está, lo agrega con cantidad 1
             carrito.push({ ...producto, cantidad: 1 });
         }
         localStorage.setItem("carrito", JSON.stringify(carrito));
@@ -243,12 +251,12 @@ function Productos() {
                                     </li>
                                     <li>
                                         {user && user.id_rol !== 1 && (
-                                        <button
-                                            className="dropdown-item"
-                                            onClick={() => navigate("/Dashboard/Inicio")}
-                                        >
-                                            Dashboard
-                                        </button>
+                                            <button
+                                                className="dropdown-item"
+                                                onClick={() => navigate("/Dashboard/Inicio")}
+                                            >
+                                                Dashboard
+                                            </button>
                                         )}
                                     </li>
                                     <li>
@@ -426,6 +434,15 @@ function Productos() {
                                 }}>
                                     {producto.categoria}
                                 </div>
+                                <div style={{
+                                    color: producto.stock > 0 ? "#43e97b" : "#e74c3c",
+                                    fontWeight: 700,
+                                    fontSize: 15,
+                                    marginBottom: 10,
+                                    textAlign: "center"
+                                }}>
+                                    Stock: {producto.stock > 0 ? producto.stock : "Sin stock"}
+                                </div>
                                 <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
                                     <button style={{
                                         background: "linear-gradient(90deg, #43e97b 0%, #38f9d7 100%)",
@@ -449,13 +466,15 @@ function Productos() {
                                         color: "#43e97b",
                                         fontWeight: 700,
                                         fontSize: 18,
-                                        cursor: "pointer",
                                         display: "flex",
                                         alignItems: "center",
                                         boxShadow: "0 2px 8px #43e97b10",
-                                        transition: "border 0.2s"
+                                        transition: "border 0.2s",
+                                        opacity: producto.stock > 0 ? 1 : 0.5,
+                                        cursor: producto.stock > 0 ? "pointer" : "not-allowed"
                                     }}
                                         onClick={() => agregarAlCarrito(producto)}
+                                        disabled={producto.stock <= 0}
                                     >
                                         <span role="img" aria-label="carrito" style={{ fontSize: 22 }}>🛒</span>
                                     </button>

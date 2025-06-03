@@ -61,7 +61,8 @@ function Return() {
                     rut: usuarioData?.rut,
                     direccion: usuarioData?.direccion,
                     observaciones: "",
-                    total: totalConDesc
+                    total: totalConDesc,
+                    carrito
                 });
 
                 if (res.data.status === "AUTHORIZED") {

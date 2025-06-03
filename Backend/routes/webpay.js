@@ -33,7 +33,7 @@ router.post("/create", async (req, res) => {
 // Confirmar pago y guardar pedido
 // ...existing code...
 router.post("/commit", async (req, res) => {
-  const { token_ws, rut, direccion, observaciones, total } = req.body;
+  const { token_ws, rut, direccion, observaciones, total, carrito } = req.body;
   try {
     const response = await transaction.commit(token_ws);
 
@@ -41,7 +41,7 @@ router.post("/commit", async (req, res) => {
       const numero_orden = response.buy_order;
       let connection;
       try {
-        console.log("Intentando guardar pedido:", { numero_orden, rut, total, direccion, observaciones });
+        console.log("Intentando guardar pedido:", { numero_orden, rut, total, direccion, observaciones, carrito });
 
         connection = await oracledb.getConnection(dbConfig);
 
@@ -67,6 +67,20 @@ router.post("/commit", async (req, res) => {
           [rut],
           { outFormat: oracledb.OUT_FORMAT_OBJECT }
         );
+        // Después de guardar el pedido y antes de finalizar la compra
+        console.log("Carrito recibido para descontar stock:", carrito);
+        if (Array.isArray(carrito)) {
+          for (const item of carrito) {
+            console.log("Descontando stock de:", item.codigo_producto, "cantidad:", item.cantidad);
+            const result = await connection.execute(
+              `UPDATE Producto SET stock = stock - :cantidad WHERE codigo_producto = :codigo_producto AND stock >= :cantidad`,
+              [item.cantidad, item.codigo_producto],
+              { autoCommit: false }
+            );
+            console.log("Filas afectadas:", result.rowsAffected);
+          }
+          await connection.commit();
+        }
 
         //Guardar historial de transacciones
         await connection.execute(
@@ -79,7 +93,7 @@ router.post("/commit", async (req, res) => {
             metodo_de_pago: response.payment_type || "Webpay",
             monto: Number(total),
             descripcion_transaccion: `Compra realizada. Autorización: ${response.authorization_code || response.authorizationCode || "N/A"}`,
-            n_orden: String(numero_orden), // ¡Como string!
+            n_orden: String(numero_orden),
             rut: Number(rut)
           },
           { autoCommit: true }
@@ -98,6 +112,5 @@ router.post("/commit", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-// ...existing code...
 
 module.exports = router;

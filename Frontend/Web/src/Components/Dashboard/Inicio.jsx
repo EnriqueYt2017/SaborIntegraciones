@@ -15,33 +15,33 @@ function Dashboard() {
     const navigate = useNavigate();
     const [productos, setProductos] = useState([]);
     const [clientes, setClientes] = useState([]);
-    const [usuarios, setUsuarios] = useState([]); // lista de usuarios
-    const [usuario, setUsuario] = useState(null); // usuario logeado
+    const [usuarios, setUsuarios] = useState([]);
+    const [usuario, setUsuario] = useState(null);
     const [form, setForm] = useState({
         rut: "", dvrut: "", primer_nombre: "", segundo_nombre: "",
         primer_apellido: "", segundo_apellido: "", direccion: "", correo: "", pass: ""
     });
     const [modoEdicion, setModoEdicion] = useState(false);
 
-    const validarFormulario = () => {
-        return form.rut && form.dvrut && form.primer_nombre && form.primer_apellido && form.correo;
-    };
-    const [currentPage, setCurrentPage] = useState(1); // Página actual
-    const itemsPerPage = 5; // Clientes por página
-
-    // Calcular el índice de inicio y fin de los clientes a mostrar
-    const indexOfLastItem = currentPage * itemsPerPage;
-    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-    const currentClientes = clientes.slice(indexOfFirstItem, indexOfLastItem);
-
-    //PRODUCTOS
+    // PRODUCTOS
     const [codigo_producto, setCodigoProducto] = useState("");
     const [nombre, setNombre] = useState("");
     const [descripcion, setDescripcion] = useState("");
     const [precio, setPrecio] = useState("");
     const [id_categoria, setIdCategoria] = useState("");
+    const [stock, setStock] = useState("");
+    const [editandoProducto, setEditandoProducto] = useState(false);
 
-    // Obtener usuarios (para la tabla de usuarios, solo admin puede ver)
+    const validarFormulario = () => {
+        return form.rut && form.dvrut && form.primer_nombre && form.primer_apellido && form.correo;
+    };
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 5;
+    const indexOfLastItem = currentPage * itemsPerPage;
+    const indexOfFirstItem = indexOfLastItem - itemsPerPage;
+    const currentClientes = clientes.slice(indexOfFirstItem, indexOfLastItem);
+
+    // Obtener usuarios
     const obtenerUsuarios = async () => {
         try {
             const res = await axios.get("http://localhost:5000/api/Usuarios");
@@ -51,25 +51,54 @@ function Dashboard() {
         }
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
+    // Obtener productos
+    const obtenerProductos = async () => {
         try {
-            await axios.post("http://localhost:5000/productos", {
-                codigo_producto,
-                nombre,
-                descripcion,
-                precio,
-                id_categoria
-            });
-            alert("Producto agregado correctamente");
-            // Recargar productos
-            axios.get("http://localhost:5000/productos")
-                .then(response => setProductos(response.data));
-        } catch (error) {
-            alert("Error al agregar producto");
+            const res = await axios.get("http://localhost:5000/api/productos"); // <-- Cambia aquí
+            setProductos(res.data);
+        } catch (err) {
+            console.error("Error al obtener productos:", err);
         }
     };
 
+    // AGREGAR O ACTUALIZAR PRODUCTO
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!codigo_producto || !nombre || !descripcion || !precio || !id_categoria || stock === "") {
+            alert("Completa todos los campos del producto.");
+            return;
+        }
+        try {
+            if (editandoProducto) {
+                // Actualizar producto
+                await axios.put(`http://localhost:5000/productos/${codigo_producto}`, {
+                    nombre,
+                    descripcion,
+                    precio,
+                    id_categoria,
+                    stock
+                });
+                alert("Producto actualizado correctamente");
+            } else {
+                // Agregar producto
+                await axios.post("http://localhost:5000/productos", {
+                    codigo_producto,
+                    nombre,
+                    descripcion,
+                    precio,
+                    id_categoria,
+                    stock
+                });
+                alert("Producto agregado correctamente");
+            }
+            obtenerProductos();
+            limpiarFormularioProducto();
+        } catch (error) {
+            alert("Error al guardar producto");
+        }
+    };
+
+    // ELIMINAR PRODUCTO
     const eliminarProducto = async (id) => {
         if (window.confirm("¿Seguro que quieres eliminar este producto?")) {
             try {
@@ -82,37 +111,30 @@ function Dashboard() {
         }
     };
 
-    useEffect(() => {
-        const userData = localStorage.getItem("user");
-        if (userData && userData !== "undefined" && userData !== "{}" && userData !== "null") {
-            try {
-                setUsuario(JSON.parse(userData));
-            } catch {
-                setUsuario(null);
-            }
-        }
-        obtenerUsuarios();
+    // EDITAR PRODUCTO
+    const handleEditarProducto = (producto) => {
+        setCodigoProducto(producto.codigo_producto);
+        setNombre(producto.nombre);
+        setDescripcion(producto.descripcion);
+        setPrecio(producto.precio);
+        setIdCategoria(producto.id_categoria);
+        setStock(producto.stock);
+        setEditandoProducto(true);
+        setActiveSection("productos");
+    };
 
-        axios.get("http://localhost:5000/clientes")
-            .then(response => setClientes(response.data))
-            .catch(error => console.error("Error al obtener clientes:", error));
-        axios.get("http://localhost:5000/productos")
-            .then(response => setProductos(response.data))
-            .catch(error => console.error("Error al obtener productos:", error));
-    }, []);
+    // LIMPIAR FORMULARIO PRODUCTO
+    const limpiarFormularioProducto = () => {
+        setCodigoProducto("");
+        setNombre("");
+        setDescripcion("");
+        setPrecio("");
+        setIdCategoria("");
+        setStock("");
+        setEditandoProducto(false);
+    };
 
-    // Si no tiene permiso para dashboard, redirige
-    useEffect(() => {
-        if (usuario && usuario.id_rol === 1) {
-            navigate("/home");
-        }
-    }, [usuario, navigate]);
-
-    // Permisos por rol
-    const puedeVerUsuarios = usuario && usuario.id_rol === 6;
-    const puedeVerProductos = usuario && (usuario.id_rol === 2 || usuario.id_rol === 6);
-    const puedeVerApi = usuario && usuario.id_rol === 6;
-
+    // USUARIOS
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
     };
@@ -122,7 +144,6 @@ function Dashboard() {
             alert("Por favor completa todos los campos requeridos.");
             return;
         }
-        // Aquí deberías agregar el usuario (solo admin puede ver/agregar)
         try {
             await axios.post("http://localhost:5000/api/Usuarios", form);
             obtenerUsuarios();
@@ -142,7 +163,7 @@ function Dashboard() {
 
     const handleActualizar = async () => {
         try {
-            const token = localStorage.getItem("token"); // Requiere autenticación
+            const token = localStorage.getItem("token");
             await axios.put("http://localhost:5000/perfil", form, {
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -170,12 +191,40 @@ function Dashboard() {
         navigate("/");
     };
 
+    useEffect(() => {
+        const userData = localStorage.getItem("user");
+        if (userData && userData !== "undefined" && userData !== "{}" && userData !== "null") {
+            try {
+                setUsuario(JSON.parse(userData));
+            } catch {
+                setUsuario(null);
+            }
+        }
+        obtenerUsuarios();
+        axios.get("http://localhost:5000/clientes")
+            .then(response => setClientes(response.data))
+            .catch(error => console.error("Error al obtener clientes:", error));
+        obtenerProductos();
+    }, []);
+
+    // Si no tiene permiso para dashboard, redirige
+    useEffect(() => {
+        if (usuario && usuario.id_rol === 1) {
+            navigate("/home");
+        }
+    }, [usuario, navigate]);
+
+    // Permisos por rol
+    const puedeVerUsuarios = usuario && usuario.id_rol === 6;
+    const puedeVerProductos = usuario && (usuario.id_rol === 2 || usuario.id_rol === 6);
+    const puedeVerApi = usuario && usuario.id_rol === 6;
+
     // Sidebar con permisos
     const filteredSections = sections.filter(section => {
         if (section.key === "usuarios") return puedeVerUsuarios;
         if (section.key === "productos") return puedeVerProductos;
         if (section.key === "Api") return puedeVerApi;
-        return true; // "Inicio" siempre visible
+        return true;
     });
 
     return (
@@ -252,7 +301,6 @@ function Dashboard() {
                     0% { transform: translateY(0) scale(1); }
                     100% { transform: translateY(-16px) scale(1.08); }
                 }
-                /* --- SUPER EPIC PRODUCTOS SECTION --- */
                 .epic-productos-bg {
                     background: linear-gradient(135deg, #fffbe6 60%, #ffe0e0 100%);
                     box-shadow: 0 8px 48px 0 #f7971e22, 0 1.5px 0 #f7971e10;
@@ -781,7 +829,7 @@ function Dashboard() {
                             }}>
                                 <span className="epic-productos-emoji">🍔</span>
                                 <div className="epic-productos-title">
-                                    <span>Administrar Productos</span>
+                                    <span>{editandoProducto ? "Editar Producto" : "Administrar Productos"}</span>
                                     <span style={{
                                         fontSize: 28,
                                         marginLeft: 8,
@@ -800,15 +848,51 @@ function Dashboard() {
                                     boxShadow: "0 2px 12px #f7971e10",
                                     padding: "18px 16px",
                                 }}>
-                                    <input type="number" placeholder="Código Producto" value={codigo_producto} onChange={(e) => setCodigoProducto(e.target.value)} />
+                                    <input
+                                        type="number"
+                                        placeholder="Código Producto"
+                                        value={codigo_producto}
+                                        onChange={(e) => setCodigoProducto(e.target.value)}
+                                        disabled={editandoProducto}
+                                    />
                                     <input type="text" placeholder="Nombre" value={nombre} onChange={(e) => setNombre(e.target.value)} />
                                     <input type="text" placeholder="Descripción" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
                                     <input type="number" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} />
                                     <input type="number" placeholder="ID Categoría" value={id_categoria} onChange={(e) => setIdCategoria(e.target.value)} />
+                                    <input
+                                        type="number"
+                                        placeholder="Stock"
+                                        value={stock}
+                                        onChange={e => setStock(e.target.value)}
+                                    />
                                     {usuario && (usuario.id_rol === 2 || usuario.id_rol === 6) && (
-                                        <button type="submit">
-                                            <span style={{ fontSize: 20, marginRight: 6 }}>➕</span> Agregar Producto
-                                        </button>
+                                        <>
+                                            <button type="submit">
+                                                <span style={{ fontSize: 20, marginRight: 6 }}>{editandoProducto ? "✏️" : "➕"}</span>
+                                                {editandoProducto ? "Actualizar Producto" : "Agregar Producto"}
+                                            </button>
+                                            {editandoProducto && (
+                                                <button
+                                                    type="button"
+                                                    style={{
+                                                        background: "#e5e7eb",
+                                                        color: "#222",
+                                                        padding: "10px 26px",
+                                                        borderRadius: 8,
+                                                        border: "none",
+                                                        fontWeight: 700,
+                                                        fontSize: 16,
+                                                        cursor: "pointer",
+                                                        marginLeft: 8,
+                                                        boxShadow: "0 1px 4px #764ba210",
+                                                        transition: "background 0.2s",
+                                                    }}
+                                                    onClick={limpiarFormularioProducto}
+                                                >
+                                                    Cancelar
+                                                </button>
+                                            )}
+                                        </>
                                     )}
                                 </form>
                                 <h3 style={{
@@ -845,6 +929,7 @@ function Dashboard() {
                                                     <th>Descripción</th>
                                                     <th>Precio</th>
                                                     <th>ID Categoría</th>
+                                                    <th>Stock</th>
                                                     <th>Acciones</th>
                                                 </tr>
                                             </thead>
@@ -865,6 +950,7 @@ function Dashboard() {
                                                             </span>
                                                         </td>
                                                         <td>{producto.id_categoria}</td>
+                                                        <td>{producto.stock}</td>
                                                         <td>
                                                             <button
                                                                 className="epic-glow"
@@ -876,12 +962,10 @@ function Dashboard() {
                                                                     border: "none",
                                                                     fontWeight: 700,
                                                                     marginRight: 8,
-                                                                    cursor: "not-allowed",
+                                                                    cursor: "pointer",
                                                                     boxShadow: "0 1px 4px #ffb34720",
-                                                                    opacity: 0.6,
                                                                 }}
-                                                                // onClick={() => handleEditarProducto(producto)}
-                                                                disabled
+                                                                onClick={() => handleEditarProducto(producto)}
                                                             >
                                                                 Editar
                                                             </button>

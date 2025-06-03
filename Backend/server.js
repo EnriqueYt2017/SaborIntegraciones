@@ -414,7 +414,7 @@ app.get("/api/productos", async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
     const result = await connection.execute(
-      `SELECT codigo_producto, nombre, descripcion, precio, id_categoria FROM Producto`,
+      `SELECT codigo_producto, nombre, descripcion, precio, id_categoria, stock FROM Producto`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
@@ -425,7 +425,8 @@ app.get("/api/productos", async (req, res) => {
       nombre: p.NOMBRE || p.nombre,
       descripcion: p.DESCRIPCION || p.descripcion,
       precio: p.PRECIO || p.precio,
-      id_categoria: p.ID_CATEGORIA || p.id_categoria
+      id_categoria: p.ID_CATEGORIA || p.id_categoria,
+      stock: p.STOCK || p.stock // <-- agrega esto
     }));
 
     console.log("Datos obtenidos:", productos); // ✅ Verificar qué devuelve la consulta
@@ -441,8 +442,8 @@ app.get("/api/productos", async (req, res) => {
 app.post("/productos", async (req, res) => {
   console.log("Datos recibidos:", req.body); // ✅ Verificar si llegan correctamente
 
-  const { codigo_producto, nombre, descripcion, precio, id_categoria } = req.body;
-  if (!codigo_producto || !nombre || !descripcion || !precio || !id_categoria) {
+  const { codigo_producto, nombre, descripcion, precio, id_categoria, stock } = req.body;
+  if (!codigo_producto || !nombre || !descripcion || !precio || !id_categoria || !stock) {
     return res.status(400).json({ error: "Todos los campos son obligatorios" });
   }
 
@@ -450,9 +451,9 @@ app.post("/productos", async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
     const result = await connection.execute(
-      `INSERT INTO Producto (codigo_producto, nombre, descripcion, precio, id_categoria)
-             VALUES (:codigo_producto, :nombre, :descripcion, :precio, :id_categoria)`,
-      [codigo_producto, nombre, descripcion, precio, id_categoria],
+      `INSERT INTO Producto (codigo_producto, nombre, descripcion, precio, id_categoria, stock)
+             VALUES (:codigo_producto, :nombre, :descripcion, :precio, :id_categoria, :stock)`,
+      [codigo_producto, nombre, descripcion, precio, id_categoria, stock],
       { autoCommit: true }
     );
 
@@ -465,6 +466,8 @@ app.post("/productos", async (req, res) => {
     if (connection) await connection.close();
   }
 });
+
+
 
 //HISTORIAL DE COMPRAS
 app.get("/api/historial", async (req, res) => {
@@ -787,14 +790,14 @@ app.get("/productos", async (req, res) => {
 });
 
 app.put("/productos/:id", async (req, res) => {
-  const { nombre, descripcion, precio, id_categoria } = req.body;
+  const { nombre, descripcion, precio, id_categoria, stock } = req.body; // <-- agrega stock aquí
   const codigo_producto = req.params.id;
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
     await connection.execute(
-      `UPDATE Producto SET nombre = :nombre, descripcion = :descripcion, precio = :precio, id_categoria = :id_categoria WHERE codigo_producto = :codigo_producto`,
-      [nombre, descripcion, precio, id_categoria, codigo_producto],
+      `UPDATE Producto SET nombre = :nombre, descripcion = :descripcion, precio = :precio, id_categoria = :id_categoria, stock = :stock WHERE codigo_producto = :codigo_producto`,
+      [nombre, descripcion, precio, id_categoria, stock, codigo_producto, stock], // <-- agrega stock aquí
       { autoCommit: true }
     );
     res.json({ mensaje: "Producto actualizado correctamente" });

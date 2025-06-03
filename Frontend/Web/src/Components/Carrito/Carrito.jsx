@@ -208,6 +208,7 @@ function Carrito() {
         localStorage.setItem("esCliente", esCliente ? "true" : "false");
         localStorage.setItem("totalSinDescuento", totalSinDescuento);
         try {
+            const carrito = JSON.parse(localStorage.getItem("carrito_backup") || "[]");
             const result = await axios.post("http://localhost:5000/webpay/create", {
                 amount: montoPagar,
                 sessionId: "sess-" + Date.now(),
@@ -262,12 +263,12 @@ function Carrito() {
                                     </li>
                                     <li>
                                         {user && user.id_rol !== 1 && (
-                                        <button
-                                            className="dropdown-item"
-                                            onClick={() => navigate("/Dashboard/Inicio")}
-                                        >
-                                            Dashboard
-                                        </button>
+                                            <button
+                                                className="dropdown-item"
+                                                onClick={() => navigate("/Dashboard/Inicio")}
+                                            >
+                                                Dashboard
+                                            </button>
                                         )}
                                     </li>
                                     <li>
