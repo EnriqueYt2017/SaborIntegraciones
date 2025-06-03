@@ -94,6 +94,7 @@ const Entrenamiento = () => {
     };
 
     const handleSuscribirme = async (plan) => {
+        const rutUsuario = user?.rut || user?.RUT || "";
         const suscripcion = {
             ID_PLAN: plan.ID_PLAN_ENTRENAMIENTO,
             NOMBRE: plan.NOMBRE,
@@ -101,7 +102,7 @@ const Entrenamiento = () => {
             FECHAINICIO: plan.FECHAINICIO ? plan.FECHAINICIO.substring(0, 10) : '',
             FECHAFIN: plan.FECHAFIN ? plan.FECHAFIN.substring(0, 10) : '',
             OBJETIVO: plan.OBJETIVO,
-            RUT: plan.RUT,
+            RUT: rutUsuario,
             TIPO_PLAN: "ENTRENAMIENTO"
         };
         const res = await fetch("http://localhost:5000/api/suscripciones", {

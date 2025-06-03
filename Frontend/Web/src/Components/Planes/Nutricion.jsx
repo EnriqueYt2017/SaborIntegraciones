@@ -95,7 +95,7 @@ const Nutricion = () => {
     };
 
     const handleSuscribirme = async (plan) => {
-        // ...existing code...
+        const rutUsuario = user?.rut || user?.RUT || "";
         const suscripcion = {
             ID_PLAN: plan.ID_PLAN_NUTRICION,
             NOMBRE: plan.NOMBRE,
@@ -103,7 +103,7 @@ const Nutricion = () => {
             FECHAINICIO: plan.FECHAINICIO ? plan.FECHAINICIO.slice(0, 10) : "",
             FECHAFIN: plan.FECHAFIN ? plan.FECHAFIN.slice(0, 10) : "",
             OBJETIVO: plan.OBJETIVO,
-            RUT: plan.RUT,
+            RUT: rutUsuario,
             TIPO_PLAN: "NUTRICION"
         };
         // ...existing code...
