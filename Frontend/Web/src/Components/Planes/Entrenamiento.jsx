@@ -162,12 +162,14 @@ const Entrenamiento = () => {
                                         </button>
                                     </li>
                                     <li>
+                                        {user && user.id_rol !== 1 && (
                                         <button
                                             className="dropdown-item"
                                             onClick={() => navigate("/Dashboard/Inicio")}
                                         >
                                             Dashboard
                                         </button>
+                                        )}
                                     </li>
                                     <li>
                                         <a href="/vermas" className="dropdown-item">Ver más</a>
@@ -273,6 +275,7 @@ const Entrenamiento = () => {
                     {/* Contenido principal */}
                     <main style={{ flex: 1 }}>
                         {/* Formulario para agregar plan */}
+                        {user && (user.id_rol === 2 || user.id_rol === 6) && (
                         <form onSubmit={handleSubmit} style={{
                             marginBottom: 40,
                             background: '#fff',
@@ -307,7 +310,7 @@ const Entrenamiento = () => {
                                 boxShadow: '0 2px 8px rgba(67,233,123,0.10)'
                             }}>Agregar Plan</button>
                         </form>
-
+                        )}
                         {filteredPlanes.length === 0 ? (
                             <p style={{ color: '#888', fontSize: 18, marginTop: 40 }}>No hay planes de entrenamiento disponibles.</p>
                         ) : (

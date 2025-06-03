@@ -8,6 +8,7 @@
     "nodemailer": "^7.0.3",
     "oracledb": "^6.8.0",
     "pdfkit": "^0.17.1",
-    "transbank-sdk": "^6.0.0"
+    "transbank-sdk": "^6.0.0",
+    "twilio": "^5.7.0"
   }
 }

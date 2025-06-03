@@ -345,12 +345,14 @@ const Nutricion = () => {
                                         </button>
                                     </li>
                                     <li>
-                                        <button
-                                            className="dropdown-item"
-                                            onClick={() => navigate("/Dashboard/Inicio")}
-                                        >
-                                            Dashboard
-                                        </button>
+                                        {user && user.id_rol !== 1 && (
+                                            <button
+                                                className="dropdown-item"
+                                                onClick={() => navigate("/Dashboard/Inicio")}
+                                            >
+                                                Dashboard
+                                            </button>
+                                        )}
                                     </li>
                                     <li>
                                         <a href="/vermas" className="dropdown-item">Ver más</a>
@@ -401,24 +403,28 @@ const Nutricion = () => {
                 <div style={styles.main}>
                     <div style={styles.title}>Planes de Nutrición</div>
                     {/* Agregar Plan */}
+                        {user && (user.id_rol === 2 || user.id_rol === 6) && (
                     <div style={styles.formCard}>
                         <div style={styles.formTitle}>Agregar Plan</div>
-                        <form onSubmit={handleAdd} style={styles.form}>
-                            <input name="NOMBRE" placeholder="Nombre" value={form.NOMBRE} onChange={handleChange} required style={styles.input} />
-                            <input name="DESCRIPCION" placeholder="Descripción" value={form.DESCRIPCION} onChange={handleChange} required style={styles.input} />
-                            <input name="FECHAINICIO" type="date" value={form.FECHAINICIO} onChange={handleChange} required style={styles.input} />
-                            <input name="FECHAFIN" type="date" value={form.FECHAFIN} onChange={handleChange} required style={styles.input} />
-                            <input name="CALORIAS_DIARIAS" placeholder="Calorías Diarias" value={form.CALORIAS_DIARIAS} onChange={handleChange} required style={styles.input} />
-                            <input name="MACRONUTRIENTES" placeholder="Macronutrientes" value={form.MACRONUTRIENTES} onChange={handleChange} required style={styles.input} />
-                            <input name="TIPODIETA" placeholder="Tipo Dieta" value={form.TIPODIETA} onChange={handleChange} required style={styles.input} />
-                            <input name="OBJETIVO" placeholder="Objetivo" value={form.OBJETIVO} onChange={handleChange} required style={styles.input} />
-                            <input name="OBSERVACIONES" placeholder="Observaciones" value={form.OBSERVACIONES} onChange={handleChange} style={styles.input} />
+                            <form onSubmit={handleAdd} style={styles.form}>
+                                <input name="NOMBRE" placeholder="Nombre" value={form.NOMBRE} onChange={handleChange} required style={styles.input} />
+                                <input name="DESCRIPCION" placeholder="Descripción" value={form.DESCRIPCION} onChange={handleChange} required style={styles.input} />
+                                <input name="FECHAINICIO" type="date" value={form.FECHAINICIO} onChange={handleChange} required style={styles.input} />
+                                <input name="FECHAFIN" type="date" value={form.FECHAFIN} onChange={handleChange} required style={styles.input} />
+                                <input name="CALORIAS_DIARIAS" placeholder="Calorías Diarias" value={form.CALORIAS_DIARIAS} onChange={handleChange} required style={styles.input} />
+                                <input name="MACRONUTRIENTES" placeholder="Macronutrientes" value={form.MACRONUTRIENTES} onChange={handleChange} required style={styles.input} />
+                                <input name="TIPODIETA" placeholder="Tipo Dieta" value={form.TIPODIETA} onChange={handleChange} required style={styles.input} />
+                                <input name="OBJETIVO" placeholder="Objetivo" value={form.OBJETIVO} onChange={handleChange} required style={styles.input} />
+                                <input name="OBSERVACIONES" placeholder="Observaciones" value={form.OBSERVACIONES} onChange={handleChange} style={styles.input} />
 
-                            <button type="submit" disabled={adding} style={styles.button}>
-                                {adding ? "Agregando..." : "Agregar Plan"}
-                            </button>
-                        </form>
-                    </div>
+                                <button type="submit" disabled={adding} style={styles.button}>
+                                    {adding ? "Agregando..." : "Agregar Plan"}
+                                </button>
+                            </form>
+                            </div>
+                        )}
+                    
+
                     {/* Filtro */}
                     <div style={styles.filterBar}>
                         <input

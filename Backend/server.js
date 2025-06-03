@@ -11,6 +11,7 @@ const PDFDocument = require("pdfkit");
 const { Readable } = require("stream");
 const path = require("path");
 const logo = path.join(__dirname, "routes", "icono-logo.png");
+const twilio = require('twilio');
 dotenv.config();
 const dbConfig = require("./dbConfig");
 app.use(express.json());
@@ -20,7 +21,15 @@ app.use("/webpay", webpayRoutes);
 
 
 
-
+function requireRoles(roles) {
+  return (req, res, next) => {
+    const user = req.body.usuario || req.user || req.decoded || {};
+    if (!roles.includes(user.id_rol)) {
+      return res.status(403).json({ error: "No tienes permisos para esta acción" });
+    }
+    next();
+  };
+}
 
 app.get("/api/Usuarios", async (req, res) => {
   let connection;
@@ -99,6 +108,7 @@ app.put("/pedidos/:numero_orden/tracking", async (req, res) => {
   }
 });
 
+
 app.put("/pedidos/:numero_orden/estado", async (req, res) => {
   const numero_orden = req.params.numero_orden;
   const { estado } = req.body;
@@ -110,7 +120,58 @@ app.put("/pedidos/:numero_orden/estado", async (req, res) => {
       [estado, numero_orden],
       { autoCommit: true }
     );
-    res.json({ mensaje: "Estado actualizado" });
+
+    // Si el estado es "Completado", enviar correo y WhatsApp
+    if (estado === "Completado") {
+      // 1. Obtener datos del pedido y usuario
+      const pedidoResult = await connection.execute(
+        `SELECT p.numero_orden, p.rut, p.total, p.direccion, u.correo, u.primer_nombre 
+         FROM pedidos p 
+         JOIN Usuarios u ON p.rut = u.rut 
+         WHERE p.numero_orden = :numero_orden`,
+        [numero_orden],
+        { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      );
+      const pedido = pedidoResult.rows[0];
+      if (pedido && pedido.CORREO) {
+        // 2. Enviar correo
+        let transporter = nodemailer.createTransport({
+          service: "gmail",
+          auth: {
+            user: "esancchezp2005@gmail.com",
+            pass: "FAQF CZRX TKOB QCNL"
+          }
+        });
+        await transporter.sendMail({
+          from: '"SportFit" <esancchezp2005@gmail.com>',
+          to: pedido.CORREO,
+          subject: "¡Tu pedido ha sido completado!",
+          html: `
+            <h2>¡Hola ${pedido.PRIMER_NOMBRE}!</h2>
+            <p>Tu pedido <b>#${pedido.NUMERO_ORDEN}</b> ha sido <b>completado</b> y está listo para ser retirado o entregado.</p>
+            <p><b>Total:</b> $${pedido.TOTAL}</p>
+            <p><b>Dirección:</b> ${pedido.DIRECCION}</p>
+            <br>
+            <p>¡Gracias por confiar en nosotros!</p>
+          `
+        });
+      }
+
+      // 3. Enviar WhatsApp (requiere Twilio o similar)
+      // Ejemplo usando Twilio (debes instalarlo: npm install twilio)
+      /*
+      
+      const client = twilio('TWILIO_ACCOUNT_SID', 'TWILIO_AUTH_TOKEN');
+      await client.messages.create({
+        from: 'whatsapp:+14155238886', // Número de Twilio WhatsApp sandbox
+        to: 'whatsapp:+569XXXXXXXX',   // Número del usuario (debes guardar el número en la BD)
+        body: `¡Hola ${pedido.PRIMER_NOMBRE}! Tu pedido #${pedido.NUMERO_ORDEN} ha sido completado.`
+      });
+      */
+      // Nota: Debes tener el número de WhatsApp del usuario en la BD y configurado en Twilio.
+    }
+
+    res.json({ mensaje: "Estado actualizado correctamente" });
   } catch (error) {
     res.status(500).json({ error: "No se pudo actualizar el estado" });
   } finally {
@@ -190,22 +251,23 @@ app.post("/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(pass, 10);
     await connection.execute(
       `INSERT INTO Usuarios 
-        (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS) 
+        (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL) 
        VALUES 
-        (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass)`,
-      [rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, hashedPassword],
+        (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol)`,
+      [rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, hashedPassword, 1], // id_rol = 1 (cliente)
       { autoCommit: true }
     );
 
-    res.status(201).json({ mensaje: "Usuario registrado exitosamente", usuario: { rut, primer_nombre, correo } });
+    res.status(201).json({ mensaje: "Usuario registrado exitosamente", usuario: { rut, primer_nombre, correo, id_rol: 1 } });
   } catch (err) {
+    // ...existing code...
+  } finally {
     console.error(err);
     if (err.errorNum === 1) { // ORA-00001: unique constraint violated
       res.status(409).json({ error: "El Usuario ya existe" });
     } else {
       res.status(500).send("Error al registrar Usuario");
     }
-  } finally {
     if (connection) {
       await connection.close();
     }
@@ -219,7 +281,7 @@ app.post("/login", async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
     const result = await connection.execute(
-      "SELECT rut, primer_nombre, pass FROM Usuarios WHERE correo = :correo",
+      "SELECT rut, primer_nombre, pass, id_rol FROM Usuarios WHERE correo = :correo",
       [correo],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
@@ -229,6 +291,8 @@ app.post("/login", async (req, res) => {
     }
 
     const usuario = result.rows[0];
+    const id_rol = usuario.ID_ROL || usuario.id_rol;
+
 
     // ✅ Verifica si los datos están en mayúsculas (Oracle suele devolverlos así)
     const rut = usuario.RUT || usuario.rut;
@@ -251,7 +315,7 @@ app.post("/login", async (req, res) => {
     res.json({
       mensaje: "Inicio de sesión exitoso",
       token,
-      usuario: { rut, primer_nombre, correo }
+      usuario: { rut, primer_nombre, correo, id_rol }
     });
 
   } catch (err) {
@@ -626,10 +690,10 @@ app.get("/dashboard/Usuarios", async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
     const result = await connection.execute(
-  `SELECT ID_PLAN, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, OBJETIVO, RUT FROM SUSCRIPCIONES`,
-  [],
-  { outFormat: oracledb.OUT_FORMAT_OBJECT }
-);
+      `SELECT rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, id_rol FROM Usuarios`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
     res.json(result.rows);
   } catch (err) {
     console.error("Error al obtener Usuarios para dashboard:", err);

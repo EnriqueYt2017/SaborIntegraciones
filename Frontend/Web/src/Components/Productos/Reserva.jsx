@@ -419,12 +419,14 @@ const Reserva = () => {
                                         </button>
                                     </li>
                                     <li>
+                                        {user && user.id_rol !== 1 && (
                                         <button
                                             className="dropdown-item"
                                             onClick={() => navigate("/Dashboard/Inicio")}
                                         >
                                             Dashboard
                                         </button>
+                                        )}
                                     </li>
                                     <li>
                                         <a href="/vermas" className="dropdown-item">Ver más</a>

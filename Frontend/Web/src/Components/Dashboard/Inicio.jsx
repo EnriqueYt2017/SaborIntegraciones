@@ -10,14 +10,13 @@ const sections = [
     { key: "Api", label: "Api" },
 ];
 
-
 function Dashboard() {
     const [activeSection, setActiveSection] = useState("Inicio");
     const navigate = useNavigate();
     const [productos, setProductos] = useState([]);
-
     const [clientes, setClientes] = useState([]);
-    const [usuario, setUsuario] = useState([]);
+    const [usuarios, setUsuarios] = useState([]); // lista de usuarios
+    const [usuario, setUsuario] = useState(null); // usuario logeado
     const [form, setForm] = useState({
         rut: "", dvrut: "", primer_nombre: "", segundo_nombre: "",
         primer_apellido: "", segundo_apellido: "", direccion: "", correo: "", pass: ""
@@ -42,19 +41,16 @@ function Dashboard() {
     const [precio, setPrecio] = useState("");
     const [id_categoria, setIdCategoria] = useState("");
 
-
-
-
-
-    // Obtener clientes
+    // Obtener usuarios (para la tabla de usuarios, solo admin puede ver)
     const obtenerUsuarios = async () => {
         try {
             const res = await axios.get("http://localhost:5000/api/Usuarios");
-            setUsuario(res.data);
+            setUsuarios(res.data);
         } catch (err) {
             console.error("Error al obtener usuarios:", err);
         }
     };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
@@ -66,6 +62,9 @@ function Dashboard() {
                 id_categoria
             });
             alert("Producto agregado correctamente");
+            // Recargar productos
+            axios.get("http://localhost:5000/productos")
+                .then(response => setProductos(response.data));
         } catch (error) {
             alert("Error al agregar producto");
         }
@@ -83,11 +82,15 @@ function Dashboard() {
         }
     };
 
-
-
-
-
     useEffect(() => {
+        const userData = localStorage.getItem("user");
+        if (userData && userData !== "undefined" && userData !== "{}" && userData !== "null") {
+            try {
+                setUsuario(JSON.parse(userData));
+            } catch {
+                setUsuario(null);
+            }
+        }
         obtenerUsuarios();
 
         axios.get("http://localhost:5000/clientes")
@@ -96,10 +99,19 @@ function Dashboard() {
         axios.get("http://localhost:5000/productos")
             .then(response => setProductos(response.data))
             .catch(error => console.error("Error al obtener productos:", error));
-
     }, []);
 
+    // Si no tiene permiso para dashboard, redirige
+    useEffect(() => {
+        if (usuario && usuario.id_rol === 1) {
+            navigate("/home");
+        }
+    }, [usuario, navigate]);
 
+    // Permisos por rol
+    const puedeVerUsuarios = usuario && usuario.id_rol === 6;
+    const puedeVerProductos = usuario && (usuario.id_rol === 2 || usuario.id_rol === 6);
+    const puedeVerApi = usuario && usuario.id_rol === 6;
 
     const handleChange = (e) => {
         setForm({ ...form, [e.target.name]: e.target.value });
@@ -110,7 +122,17 @@ function Dashboard() {
             alert("Por favor completa todos los campos requeridos.");
             return;
         }
-        // ...
+        // Aquí deberías agregar el usuario (solo admin puede ver/agregar)
+        try {
+            await axios.post("http://localhost:5000/api/Usuarios", form);
+            obtenerUsuarios();
+            setForm({
+                rut: "", dvrut: "", primer_nombre: "", segundo_nombre: "",
+                primer_apellido: "", segundo_apellido: "", direccion: "", correo: "", pass: ""
+            });
+        } catch (err) {
+            alert("Error al agregar usuario");
+        }
     };
 
     const handleEditar = (usuario) => {
@@ -135,7 +157,6 @@ function Dashboard() {
         }
     };
 
-
     const handleEliminar = async (rut) => {
         try {
             await axios.delete(`http://localhost:5000/usuarios/${rut}`);
@@ -148,6 +169,14 @@ function Dashboard() {
     const goHome = () => {
         navigate("/");
     };
+
+    // Sidebar con permisos
+    const filteredSections = sections.filter(section => {
+        if (section.key === "usuarios") return puedeVerUsuarios;
+        if (section.key === "productos") return puedeVerProductos;
+        if (section.key === "Api") return puedeVerApi;
+        return true; // "Inicio" siempre visible
+    });
 
     return (
         <div
@@ -370,7 +399,7 @@ function Dashboard() {
                     </h2>
                 </div>
                 <nav style={{ width: "100%" }}>
-                    {sections.map((section) => (
+                    {filteredSections.map((section) => (
                         <button
                             key={section.key}
                             onClick={() => setActiveSection(section.key)}
@@ -517,7 +546,7 @@ function Dashboard() {
                         }}>
                             {activeSection === "Inicio" && "✨"}
                             {activeSection === "usuarios" && "👥"}
-                            {activeSection === "productos" && "🍉"}
+                            {activeSection === "productos" && "🛍️"}
                             {activeSection === "Api" && "🔗"}
                         </span>
                         {activeSection === "Inicio" && (
@@ -532,7 +561,7 @@ function Dashboard() {
                                 </ul>
                             </>
                         )}
-                        {activeSection === "usuarios" && (
+                        {activeSection === "usuarios" && puedeVerUsuarios && (
                             <div style={{ width: "100%" }}>
                                 {/* Formulario */}
                                 <div
@@ -688,7 +717,7 @@ function Dashboard() {
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {usuario.map((c) => (
+                                            {usuarios.map((c) => (
                                                 <tr key={c.RUT || c.rut} style={{ borderTop: "1px solid #e5e7eb" }}>
                                                     <td style={{ padding: 12 }}>{c.RUT || c.rut}-{c.DVRUT || c.dvrut}</td>
                                                     <td style={{ padding: 12 }}>{c.PRIMER_NOMBRE || c.primer_nombre} {c.SEGUNDO_NOMBRE || c.segundo_nombre}</td>
@@ -737,7 +766,7 @@ function Dashboard() {
                                 </div>
                             </div>
                         )}
-                        {activeSection === "productos" && (
+                        {activeSection === "productos" && puedeVerProductos && (
                             <div className="epic-productos-bg epic-float" style={{
                                 width: "100%",
                                 display: "flex",
@@ -776,9 +805,11 @@ function Dashboard() {
                                     <input type="text" placeholder="Descripción" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
                                     <input type="number" placeholder="Precio" value={precio} onChange={(e) => setPrecio(e.target.value)} />
                                     <input type="number" placeholder="ID Categoría" value={id_categoria} onChange={(e) => setIdCategoria(e.target.value)} />
-                                    <button type="submit">
-                                        <span style={{ fontSize: 20, marginRight: 6 }}>➕</span> Agregar Producto
-                                    </button>
+                                    {usuario && (usuario.id_rol === 2 || usuario.id_rol === 6) && (
+                                        <button type="submit">
+                                            <span style={{ fontSize: 20, marginRight: 6 }}>➕</span> Agregar Producto
+                                        </button>
+                                    )}
                                 </form>
                                 <h3 style={{
                                     fontSize: 24,
@@ -890,7 +921,7 @@ function Dashboard() {
                                 )}
                             </div>
                         )}
-                        {activeSection === "Api" && (
+                        {activeSection === "Api" && puedeVerApi && (
                             <div className="epic-gradient-border" style={{
                                 width: "100%",
                                 background: "#f8fafc",
