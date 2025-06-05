@@ -20,23 +20,26 @@ function Perfil() {
     const [correo, setCorreo] = useState("");
 
     useEffect(() => {
-        const userData = localStorage.getItem("user");
-        if (userData) {
+        const fetchPerfil = async () => {
             try {
-                const parsedUser = JSON.parse(userData);
-                if (parsedUser && Object.keys(parsedUser).length > 0) {
-                    setUser(parsedUser);
-                    setPrimerNombre(parsedUser.primer_nombre || "");
-                    setSegundoNombre(parsedUser.segundo_nombre || "");
-                    setPrimerApellido(parsedUser.primer_apellido || "");
-                    setSegundoApellido(parsedUser.segundo_apellido || "");
-                    setDireccion(parsedUser.direccion || "");
-                    setCorreo(parsedUser.correo || "");
-                }
+                const token = localStorage.getItem("token");
+                if (!token) return;
+                const res = await axios.get("http://localhost:5000/perfil", {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const usuario = res.data;
+                setUser(usuario);
+                setPrimerNombre(usuario.primer_nombre || usuario.PRIMER_NOMBRE || "");
+                setSegundoNombre(usuario.segundo_nombre || usuario.SEGUNDO_NOMBRE || "");
+                setPrimerApellido(usuario.primer_apellido || usuario.PRIMER_APELLIDO || "");
+                setSegundoApellido(usuario.segundo_apellido || usuario.SEGUNDO_APELLIDO || "");
+                setDireccion(usuario.direccion || usuario.DIRECCION || "");
+                setCorreo(usuario.correo || usuario.CORREO || "");
             } catch (error) {
-                console.error("Error al parsear usuario:", error);
+                console.error("Error al obtener perfil:", error);
             }
-        }
+        };
+        fetchPerfil();
     }, []);
 
     const cerrarSesion = () => {
@@ -105,12 +108,12 @@ function Perfil() {
                                     </li>
                                     <li>
                                         {user && user.id_rol !== 1 && (
-                                        <button
-                                            className="dropdown-item"
-                                            onClick={() => navigate("/Dashboard/Inicio")}
-                                        >
-                                            Dashboard
-                                        </button>
+                                            <button
+                                                className="dropdown-item"
+                                                onClick={() => navigate("/Dashboard/Inicio")}
+                                            >
+                                                Dashboard
+                                            </button>
                                         )}
                                     </li>
                                     <li>

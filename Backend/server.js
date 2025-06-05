@@ -41,7 +41,7 @@ app.get("/api/Usuarios", async (req, res) => {
     }
 
     const result = await connection.execute(
-      `SELECT rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo FROM Usuarios`,
+      `SELECT rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, id_rol FROM Usuarios`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
@@ -54,6 +54,46 @@ app.get("/api/Usuarios", async (req, res) => {
     if (connection) {
       await connection.close();
     }
+  }
+});
+
+app.post("/api/Usuarios", async (req, res) => {
+  const {
+    rut, dvrut, primer_nombre, segundo_nombre,
+    primer_apellido, segundo_apellido, direccion, correo, pass, id_rol
+  } = req.body;
+
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const hashedPassword = await bcrypt.hash(pass, 10);
+
+    await connection.execute(
+      `INSERT INTO Usuarios 
+        (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL) 
+       VALUES 
+        (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol)`,
+      {
+        rut,
+        dvrut,
+        primer_nombre,
+        segundo_nombre,
+        primer_apellido,
+        segundo_apellido,
+        direccion,
+        correo,
+        pass: hashedPassword,
+        id_rol: Number(id_rol)
+      },
+      { autoCommit: true }
+    );
+
+    res.status(201).json({ mensaje: "Usuario agregado correctamente" });
+  } catch (err) {
+    console.error("Error al agregar usuario:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) await connection.close();
   }
 });
 
@@ -251,10 +291,21 @@ app.post("/register", async (req, res) => {
     const hashedPassword = await bcrypt.hash(pass, 10);
     await connection.execute(
       `INSERT INTO Usuarios 
-        (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL) 
-       VALUES 
-        (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol)`,
-      [rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, hashedPassword, 1], // id_rol = 1 (cliente)
+    (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL) 
+   VALUES 
+    (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol)`,
+      {
+        rut,
+        dvrut,
+        primer_nombre,
+        segundo_nombre,
+        primer_apellido,
+        segundo_apellido,
+        direccion,
+        correo,
+        pass: hashedPassword,
+        id_rol: 1 // o el valor correcto
+      },
       { autoCommit: true }
     );
 
@@ -711,11 +762,20 @@ app.get("/dashboard/Usuarios", async (req, res) => {
 // Actualizar cliente por rut
 app.put('/api/Usuarios/:rut', async (req, res) => {
   const rut = req.params.rut;
-  const updatedData = req.body;
+  const {
+    dvrut,
+    primer_nombre,
+    segundo_nombre,
+    primer_apellido,
+    segundo_apellido,
+    direccion,
+    correo,
+    id_rol
+  } = req.body;
   let connection;
 
   try {
-    connection = await oracledb.getConnection(dbConfig); // 🔹 abrir conexión
+    connection = await oracledb.getConnection(dbConfig);
     await connection.execute(
       `UPDATE Usuarios SET 
         DVRUT = :dvrut,
@@ -724,9 +784,20 @@ app.put('/api/Usuarios/:rut', async (req, res) => {
         PRIMER_APELLIDO = :primer_apellido,
         SEGUNDO_APELLIDO = :segundo_apellido,
         DIRECCION = :direccion,
-        CORREO = :correo
+        CORREO = :correo,
+        ID_ROL = :id_rol
       WHERE RUT = :rut`,
-      { ...updatedData, rut },
+      {
+        dvrut,
+        primer_nombre,
+        segundo_nombre,
+        primer_apellido,
+        segundo_apellido,
+        direccion,
+        correo,
+        id_rol: Number(id_rol),
+        rut
+      },
       { autoCommit: true }
     );
 
@@ -735,7 +806,7 @@ app.put('/api/Usuarios/:rut', async (req, res) => {
     console.error(err);
     res.status(500).send({ error: 'Error al actualizar Usuarios' });
   } finally {
-    if (connection) await connection.close(); // 🔹 cerrar conexión
+    if (connection) await connection.close();
   }
 });
 
