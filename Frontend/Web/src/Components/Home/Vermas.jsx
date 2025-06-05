@@ -224,6 +224,7 @@ function Vermas() {
                         />
                     </SectionCard>
                     <SectionCard title="Seguimiento de Pedidos" icon="🚚">
+                        {user && (user.id_rol === 5 || user.id_rol === 6) && (
                         <button
                             className="btn btn-primary mb-3"
                             onClick={() => navigate("/seguimiento")}
@@ -231,6 +232,7 @@ function Vermas() {
                         >
                             Buscar pedido
                         </button>
+                        )}
                         <ul className="vermas-list">
                             {paginar(seguimientoFiltrado, seguimientoPage).map((pedido, index) => (
                                 <li key={index} className="vermas-list-item">

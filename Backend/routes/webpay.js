@@ -47,7 +47,7 @@ router.post("/commit", async (req, res) => {
 
         const pedidoExistente = await connection.execute(
           `SELECT 1 FROM pedidos WHERE numero_orden = :numero_orden`,
-          [numero_orden],
+          { numero_orden },
           { outFormat: oracledb.OUT_FORMAT_OBJECT }
         );
 
@@ -55,8 +55,14 @@ router.post("/commit", async (req, res) => {
           // Solo inserta si no existe
           await connection.execute(
             `INSERT INTO pedidos (id_pedido, numero_orden, rut, fecha_pedido, estado, total, direccion, observaciones)
-     VALUES (PEDIDOS_SEQ.NEXTVAL, :numero_orden, :rut, SYSDATE, 'Sin enviar', :total, :direccion, :observaciones)`,
-            [numero_orden, rut, total, direccion, observaciones],
+   VALUES (PEDIDOS_SEQ.NEXTVAL, :numero_orden, :rut, SYSDATE, 'Sin enviar', :total, :direccion, :observaciones)`,
+            {
+              numero_orden,
+              rut,
+              total,
+              direccion,
+              observaciones
+            },
             { autoCommit: true }
           );
         }
@@ -71,13 +77,14 @@ router.post("/commit", async (req, res) => {
         console.log("Carrito recibido para descontar stock:", carrito);
         if (Array.isArray(carrito)) {
           for (const item of carrito) {
-            console.log("Descontando stock de:", item.codigo_producto, "cantidad:", item.cantidad);
-            const result = await connection.execute(
+            await connection.execute(
               `UPDATE Producto SET stock = stock - :cantidad WHERE codigo_producto = :codigo_producto AND stock >= :cantidad`,
-              [item.cantidad, item.codigo_producto],
+              {
+                cantidad: item.cantidad,
+                codigo_producto: item.codigo_producto
+              },
               { autoCommit: false }
             );
-            console.log("Filas afectadas:", result.rowsAffected);
           }
           await connection.commit();
         }

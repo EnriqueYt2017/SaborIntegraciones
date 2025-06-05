@@ -63,13 +63,7 @@ const Seguimiento = () => {
             if (!res.ok) throw new Error("Pedido no encontrado");
             const data = await res.json();
 
-            // Solo mostrar si el RUT coincide con el usuario logeado
-            const rutUsuario = user?.rut || user?.RUT || "";
-            if (String(data.rut) !== String(rutUsuario)) {
-                setError("No tienes permiso para ver este pedido.");
-                setPedido(null);
-                return;
-            }
+            
 
             setPedido(data);
         } catch (err) {

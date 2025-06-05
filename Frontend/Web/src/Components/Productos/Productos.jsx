@@ -96,6 +96,10 @@ function Productos() {
 
     // Funcion para agregar a la reserva
     const agregarAReserva = (producto) => {
+        if (!producto.stock || producto.stock <= 0) {
+            alert("No hay stock disponible para este producto. No se puede reservar.");
+            return;
+        }
         const reserva = JSON.parse(localStorage.getItem("carrito_reserva")) || [];
         const index = reserva.findIndex(item => item.codigo_producto === producto.codigo_producto);
         if (index >= 0) {
@@ -493,6 +497,7 @@ function Productos() {
                                         transition: "border 0.2s"
                                     }}
                                         onClick={() => agregarAReserva(producto)}
+                                        disabled={producto.stock <= 0}
                                     >
                                         <span role="img" aria-label="reserva" style={{ fontSize: 22 }}>📦</span>
                                     </button>

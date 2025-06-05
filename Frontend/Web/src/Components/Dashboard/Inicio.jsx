@@ -431,7 +431,7 @@ function Dashboard() {
                         WebkitTextFillColor: "transparent",
                         fontWeight: 900,
                         filter: "drop-shadow(0 2px 8px #ffcc3340)"
-                    }}>🍽️</span>
+                    }}>⚙️</span>
                     <h2
                         style={{
                             fontWeight: 900,
@@ -482,7 +482,7 @@ function Dashboard() {
                             <span style={{ marginRight: 16, fontSize: 26 }}>
                                 {section.key === "Inicio" && "🏠"}
                                 {section.key === "usuarios" && "👤"}
-                                {section.key === "productos" && "🍔"}
+                                {section.key === "productos" && "🛍️"}
                                 {section.key === "Api" && "🔗"}
                             </span>
                             {section.label}
@@ -562,7 +562,7 @@ function Dashboard() {
                     >
                         {activeSection === "Inicio" && <>🚀 Bienvenido al <span style={{ color: "#ffb347" }}>Panel de Control</span></>}
                         {activeSection === "usuarios" && <>👤 <span style={{ color: "#764ba2" }}>Administrar Usuarios</span></>}
-                        {activeSection === "productos" && <>🍔 <span style={{ color: "#f7971e" }}>Administrar Productos</span></>}
+                        {activeSection === "productos" && <>🛍️ <span style={{ color: "#f7971e" }}>Administrar Productos</span></>}
                         {activeSection === "Api" && <>🔗 <span style={{ color: "#43cea2" }}>API Clientes</span></>}
                     </h2>
                     <div
@@ -604,7 +604,7 @@ function Dashboard() {
                                 </p>
                                 <ul style={{ fontSize: 18, color: "#666", marginLeft: 28, lineHeight: 2 }}>
                                     <li>👤 <b>Usuarios</b>: administra tu base de usuarios.</li>
-                                    <li>🍉 <b>Productos</b>: controla tu inventario.</li>
+                                    <li>🛍️ <b>Productos</b>: controla tu inventario.</li>
                                     <li>🔗 <b>API</b>: consulta clientes externos.</li>
                                 </ul>
                             </>
@@ -827,7 +827,7 @@ function Dashboard() {
                                 position: "relative",
                                 zIndex: 1,
                             }}>
-                                <span className="epic-productos-emoji">🍔</span>
+                                <span className="epic-productos-emoji">🛍️</span>
                                 <div className="epic-productos-title">
                                     <span>{editandoProducto ? "Editar Producto" : "Administrar Productos"}</span>
                                     <span style={{

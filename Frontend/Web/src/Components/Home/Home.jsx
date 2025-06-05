@@ -342,6 +342,7 @@ function Home() {
                             fontWeight: 500,
                             boxShadow: "0 2px 8px #007bff22"
                         }}
+                        onClick={() => navigate("/planes/entrenamiento")}
                     >
                         Ver Planes
                     </button>
@@ -383,6 +384,7 @@ function Home() {
                             fontWeight: 500,
                             boxShadow: "0 2px 8px #28a74522"
                         }}
+                        onClick={() => navigate("/planes/nutricion")}
                     >
                         Ver Planes
                     </button>

@@ -790,14 +790,14 @@ app.get("/productos", async (req, res) => {
 });
 
 app.put("/productos/:id", async (req, res) => {
-  const { nombre, descripcion, precio, id_categoria, stock } = req.body; // <-- agrega stock aquí
+  const { nombre, descripcion, precio, id_categoria, stock } = req.body;
   const codigo_producto = req.params.id;
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
     await connection.execute(
       `UPDATE Producto SET nombre = :nombre, descripcion = :descripcion, precio = :precio, id_categoria = :id_categoria, stock = :stock WHERE codigo_producto = :codigo_producto`,
-      [nombre, descripcion, precio, id_categoria, stock, codigo_producto, stock], // <-- agrega stock aquí
+      [nombre, descripcion, precio, id_categoria, stock, codigo_producto],
       { autoCommit: true }
     );
     res.json({ mensaje: "Producto actualizado correctamente" });
@@ -814,12 +814,24 @@ app.delete("/productos/:id", async (req, res) => {
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
+
+    // Elimina primero los registros relacionados en reserva_producto (y otras tablas si aplica)
+    await connection.execute(
+      `DELETE FROM reserva_producto WHERE codigo_producto = :codigo_producto`,
+      [codigo_producto],
+      { autoCommit: false }
+    );
+    // Agrega aquí más deletes si hay otras tablas relacionadas
+
+    // Ahora elimina el producto
     await connection.execute(
       `DELETE FROM Producto WHERE codigo_producto = :codigo_producto`,
       [codigo_producto],
-      { autoCommit: true }
+      { autoCommit: false }
     );
-    res.json({ mensaje: "Producto eliminado correctamente" });
+
+    await connection.commit();
+    res.json({ mensaje: "Producto y registros relacionados eliminados correctamente" });
   } catch (error) {
     console.error("Error al eliminar producto:", error);
     res.status(500).json({ error: error.message });
