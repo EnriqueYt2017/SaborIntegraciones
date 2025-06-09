@@ -15,6 +15,8 @@ import Reserva from "./Components/Productos/Reserva";
 //Planes
 import Entrenamiento from "./Components/Planes/Entrenamiento"
 import Nutricion from "./Components/Planes/Nutricion";
+// FOROS
+import Foro_entrenamiento from "./Components/Planes/Foro_entrenamiento";
 
 const App = () => {
 
@@ -41,6 +43,7 @@ const App = () => {
                 {/* 🔹 Planes */}
                 <Route path="/planes/entrenamiento" element={<Entrenamiento />} />
                 <Route path="/planes/nutricion" element={<Nutricion />} />
+                <Route path="/planes/foros" element={<Foro_entrenamiento />} />
 
                 {/* 🔹 Rutas de administración */}
 

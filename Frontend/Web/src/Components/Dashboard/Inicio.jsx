@@ -1,5 +1,5 @@
 /* eslint-disable no-unused-vars */
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 
@@ -30,7 +30,11 @@ function Dashboard() {
     const [precio, setPrecio] = useState("");
     const [id_categoria, setIdCategoria] = useState("");
     const [stock, setStock] = useState("");
+    const [imagen, setImagen] = useState(null);
+    const [preview, setPreview] = useState(null);
     const [editandoProducto, setEditandoProducto] = useState(false);
+
+    const fileInputRef = useRef();
 
     const validarFormulario = () => {
         return form.rut && form.dvrut && form.primer_nombre && form.primer_apellido && form.correo;
@@ -61,7 +65,7 @@ function Dashboard() {
     // Obtener productos
     const obtenerProductos = async () => {
         try {
-            const res = await axios.get("http://localhost:5000/api/productos"); // <-- Cambia aquí
+            const res = await axios.get("http://localhost:5000/api/productos");
             setProductos(res.data);
         } catch (err) {
             console.error("Error al obtener productos:", err);
@@ -76,25 +80,25 @@ function Dashboard() {
             return;
         }
         try {
+            const formData = new FormData();
+            formData.append("codigo_producto", codigo_producto);
+            formData.append("nombre", nombre);
+            formData.append("descripcion", descripcion);
+            formData.append("precio", precio);
+            formData.append("id_categoria", id_categoria);
+            formData.append("stock", stock);
+            if (imagen) formData.append("imagen", imagen);
+
             if (editandoProducto) {
                 // Actualizar producto
-                await axios.put(`http://localhost:5000/productos/${codigo_producto}`, {
-                    nombre,
-                    descripcion,
-                    precio,
-                    id_categoria,
-                    stock
+                await axios.put(`http://localhost:5000/productos/${codigo_producto}`, formData, {
+                    headers: { "Content-Type": "multipart/form-data" }
                 });
                 mostrarAlerta("Producto actualizado correctamente", "success");
             } else {
                 // Agregar producto
-                await axios.post("http://localhost:5000/productos", {
-                    codigo_producto,
-                    nombre,
-                    descripcion,
-                    precio,
-                    id_categoria,
-                    stock
+                await axios.post("http://localhost:5000/productos", formData, {
+                    headers: { "Content-Type": "multipart/form-data" }
                 });
                 mostrarAlerta("Producto agregado correctamente", "success");
             }
@@ -125,7 +129,9 @@ function Dashboard() {
         setDescripcion(producto.descripcion);
         setPrecio(producto.precio);
         setIdCategoria(producto.id_categoria);
-        setStock(producto.stock);
+        setStock(producto.stock || 0);
+        setImagen(null);
+        setPreview(producto.imagen || null);
         setEditandoProducto(true);
         setActiveSection("productos");
     };
@@ -138,7 +144,23 @@ function Dashboard() {
         setPrecio("");
         setIdCategoria("");
         setStock("");
+        setImagen(null);
+        setPreview(null);
         setEditandoProducto(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+    };
+
+    // Imagen preview
+    const handleImagenChange = (e) => {
+        const file = e.target.files[0];
+        setImagen(file);
+        if (file) {
+            const reader = new FileReader();
+            reader.onloadend = () => setPreview(reader.result);
+            reader.readAsDataURL(file);
+        } else {
+            setPreview(null);
+        }
     };
 
     // USUARIOS
@@ -739,7 +761,7 @@ function Dashboard() {
                                                 name="id_rol"
                                                 value={form.id_rol || ""}
                                                 onChange={handleChange}
-                                                lassName="epic-float"
+                                                ClassName="epic-float"
                                                 style={{
                                                     border: "1.5px solid #d1d5db",
                                                     borderRadius: 8,
@@ -921,6 +943,7 @@ function Dashboard() {
                                             filter: "drop-shadow(0 2px 8px #ffcc3340)"
                                         }}>🔥</span>
                                     </div>
+                                    {/* Formulario de productos */}
                                     <form className="epic-productos-form" onSubmit={handleSubmit} style={{
                                         display: "flex",
                                         flexWrap: "wrap",
@@ -933,6 +956,17 @@ function Dashboard() {
                                         boxShadow: "0 2px 12px #f7971e10",
                                         padding: "18px 16px",
                                     }}>
+                                        {/* Mostrar preview de imagen si existe */}
+                                        {preview && (
+                                            <div style={{ marginBottom: 12, width: "100%", textAlign: "center" }}>
+                                                <img
+                                                    src={preview}
+                                                    alt="Vista previa"
+                                                    style={{ width: 80, height: 80, objectFit: "cover", borderRadius: 12, boxShadow: "0 2px 8px #43e97b30" }}
+                                                />
+                                            </div>
+                                        )}
+                                        <input type="file" accept="image/*" onChange={handleImagenChange} ref={fileInputRef} />
                                         <input
                                             type="number"
                                             placeholder="Código Producto"
@@ -950,6 +984,7 @@ function Dashboard() {
                                             value={stock}
                                             onChange={e => setStock(e.target.value)}
                                         />
+
                                         {usuario && (usuario.id_rol === 2 || usuario.id_rol === 6) && (
                                             <>
                                                 <button type="submit">
@@ -1009,6 +1044,7 @@ function Dashboard() {
                                             }}>
                                                 <thead>
                                                     <tr>
+                                                        <th>Imagen</th>
                                                         <th>Código</th>
                                                         <th>Nombre</th>
                                                         <th>Descripción</th>
@@ -1021,6 +1057,13 @@ function Dashboard() {
                                                 <tbody>
                                                     {productos.map((producto) => (
                                                         <tr key={producto.codigo_producto}>
+                                                            <td>
+                                                                {producto.imagen ? (
+                                                                    <img src={producto.imagen} alt={producto.nombre} style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8 }} />
+                                                                ) : (
+                                                                    <span role="img" aria-label="producto" style={{ fontSize: 36 }}>🛍️</span>
+                                                                )}
+                                                            </td>
                                                             <td>{producto.codigo_producto}</td>
                                                             <td>{producto.nombre}</td>
                                                             <td>{producto.descripcion}</td>

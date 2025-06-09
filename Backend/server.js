@@ -12,6 +12,9 @@ const { Readable } = require("stream");
 const path = require("path");
 const logo = path.join(__dirname, "routes", "icono-logo.png");
 const twilio = require('twilio');
+const multer = require("multer");
+
+app.use("/uploads", express.static("uploads"));
 dotenv.config();
 const dbConfig = require("./dbConfig");
 app.use(express.json());
@@ -19,7 +22,18 @@ app.use(cors());
 
 app.use("/webpay", webpayRoutes);
 
-
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads/");
+  },
+  filename: function (req, file, cb) {
+    // Guarda el archivo con un nombre único y su extensión original
+    const ext = path.extname(file.originalname);
+    const uniqueName = Date.now() + "-" + Math.round(Math.random() * 1E9) + ext;
+    cb(null, uniqueName);
+  }
+});
+const upload = multer({ storage });
 
 function requireRoles(roles) {
   return (req, res, next) => {
@@ -465,46 +479,45 @@ app.get("/api/productos", async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
     const result = await connection.execute(
-      `SELECT codigo_producto, nombre, descripcion, precio, id_categoria, stock FROM Producto`,
+      "SELECT * FROM Producto",
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-
-    // ✅ Adaptar los nombres de las columnas
     const productos = result.rows.map(p => ({
-      codigo_producto: p.CODIGO_PRODUCTO || p.codigo_producto,
-      nombre: p.NOMBRE || p.nombre,
-      descripcion: p.DESCRIPCION || p.descripcion,
-      precio: p.PRECIO || p.precio,
-      id_categoria: p.ID_CATEGORIA || p.id_categoria,
-      stock: p.STOCK || p.stock // <-- agrega esto
+      codigo_producto: p.CODIGO_PRODUCTO,
+      nombre: p.NOMBRE,
+      descripcion: p.DESCRIPCION,
+      precio: p.PRECIO,
+      id_categoria: p.ID_CATEGORIA,
+      stock: p.STOCK,
+      imagen: p.IMAGEN
+        ? `${req.protocol}://${req.get("host")}/uploads/${p.IMAGEN}`
+        : null
     }));
-
-    console.log("Datos obtenidos:", productos); // ✅ Verificar qué devuelve la consulta
     res.json(productos);
   } catch (error) {
-    console.error("Error al obtener productos:", error);
     res.status(500).json({ error: error.message });
   } finally {
     if (connection) await connection.close();
   }
 });
 //Agregar Producto
-app.post("/productos", async (req, res) => {
+app.post("/productos", upload.single("imagen"), async (req, res) => {
   console.log("Datos recibidos:", req.body); // ✅ Verificar si llegan correctamente
 
   const { codigo_producto, nombre, descripcion, precio, id_categoria, stock } = req.body;
+  const imagen = req.file ? req.file.filename : null;
   if (!codigo_producto || !nombre || !descripcion || !precio || !id_categoria || !stock) {
-    return res.status(400).json({ error: "Todos los campos son obligatorios" });
+    return res.status(400).json({ error: "Todos los campos menos imagen son obligatorios" });
   }
 
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
-    const result = await connection.execute(
-      `INSERT INTO Producto (codigo_producto, nombre, descripcion, precio, id_categoria, stock)
-             VALUES (:codigo_producto, :nombre, :descripcion, :precio, :id_categoria, :stock)`,
-      [codigo_producto, nombre, descripcion, precio, id_categoria, stock],
+    await connection.execute(
+      `INSERT INTO Producto (codigo_producto, nombre, descripcion, precio, id_categoria, stock, imagen)
+       VALUES (:codigo_producto, :nombre, :descripcion, :precio, :id_categoria, :stock, :imagen)`,
+      [codigo_producto, nombre, descripcion, precio, id_categoria, stock, imagen],
       { autoCommit: true }
     );
 
@@ -517,6 +530,7 @@ app.post("/productos", async (req, res) => {
     if (connection) await connection.close();
   }
 });
+app.use("/uploads", express.static("uploads"));
 
 
 
@@ -526,21 +540,20 @@ app.get("/api/historial", async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
     const result = await connection.execute(
-      `SELECT id_historial, fecha_transaccion, metodo_de_pago, monto, descripcion_transaccion, n_orden, rut FROM Historial`,
+      `SELECT ID_HISTORIAL, FECHA_TRANSACCION, METODO_DE_PAGO, MONTO, DESCRIPCION_TRANSACCION, N_ORDEN, RUT FROM HISTORIAL`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    // Adaptar nombres de columnas para el frontend
     const historial = result.rows.map(row => ({
-      id_historial: row.ID_HISTORIAL || row.id_historial,
-      fecha_transaccion: row.FECHA_TRANSACCION || row.fecha_transaccion,
-      metodo_de_pago: row.METODO_DE_PAGO || row.metodo_de_pago,
-      monto: row.MONTO || row.monto,
-      descripcion_transaccion: row.DESCRIPCION_TRANSACCION || row.descripcion_transaccion,
-      n_orden: row.N_ORDEN || row.n_orden,
-      rut: row.RUT || row.rut
+      id_historial: row.ID_HISTORIAL,
+      fecha_transaccion: row.FECHA_TRANSACCION,
+      metodo_de_pago: row.METODO_DE_PAGO,
+      monto: row.MONTO,
+      descripcion_transaccion: row.DESCRIPCION_TRANSACCION,
+      n_orden: row.N_ORDEN,
+      rut: row.RUT
     }));
-    res.json(historial);
+    res.json(historial); // <-- CORRIGE AQUÍ
   } catch (err) {
     console.error("Error al obtener historial:", err);
     res.status(500).json({ error: "No se pudo obtener el historial" });
@@ -556,7 +569,7 @@ app.get("/api/planes-entrenamiento", async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
     const result = await connection.execute(
-      `SELECT ID_PLAN_ENTRENAMIENTO, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, FRECUENCIA, DURACION, NIVEL, TIPO, OBJETIVO, RUT FROM PLAN_ENTRENAMIENTO`,
+      `SELECT ID_PLAN_ENTRENAMIENTO, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, FRECUENCIA, DURACION, NIVEL, TIPO, OBJETIVO, RUT, PRECIO FROM PLAN_ENTRENAMIENTO`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
@@ -587,15 +600,16 @@ app.post("/api/planes-entrenamiento", async (req, res) => {
 
     await connection.execute(
       `INSERT INTO PLAN_ENTRENAMIENTO (
-    ID_PLAN_ENTRENAMIENTO, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, FRECUENCIA, DURACION, NIVEL, TIPO, OBJETIVO, RUT
+    ID_PLAN_ENTRENAMIENTO, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, FRECUENCIA, DURACION, NIVEL, TIPO, OBJETIVO, RUT, PRECIO
   ) VALUES (
-    SEQ_PLAN_ENTRENAMIENTO.NEXTVAL, :NOMBRE, :DESCRIPCION, TO_DATE(:FECHAINICIO, 'YYYY-MM-DD'), TO_DATE(:FECHAFIN, 'YYYY-MM-DD'), :FRECUENCIA, :DURACION, :NIVEL, :TIPO, :OBJETIVO, :RUT
+    SEQ_PLAN_ENTRENAMIENTO.NEXTVAL, :NOMBRE, :DESCRIPCION, TO_DATE(:FECHAINICIO, 'YYYY-MM-DD'), TO_DATE(:FECHAFIN, 'YYYY-MM-DD'), :FRECUENCIA, :DURACION, :NIVEL, :TIPO, :OBJETIVO, :RUT, :PRECIO
   )`,
       {
         NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, FRECUENCIA,
         DURACION: Number(DURACION),
         NIVEL, TIPO, OBJETIVO,
-        RUT: Number(RUT)
+        RUT: Number(RUT),
+        PRECIO: 0 // Asignar un precio por defecto, puedes cambiarlo según tu lógica
       },
       { autoCommit: true }
     );
@@ -603,11 +617,114 @@ app.post("/api/planes-entrenamiento", async (req, res) => {
     res.status(201).json({
       ID_PLAN_ENTRENAMIENTO: nextId,
       NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, FRECUENCIA,
-      DURACION, NIVEL, TIPO, OBJETIVO, RUT
+      DURACION, NIVEL, TIPO, OBJETIVO, RUT, PRECIO: 0,
     });
   } catch (err) {
     console.error("Error al agregar plan de entrenamiento:", err);
     res.status(500).json({ error: "No se pudo agregar el plan" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Eliminar plan de entrenamiento
+app.delete("/api/planes-entrenamiento/:id", async (req, res) => {
+  const id = req.params.id;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      "DELETE FROM PLAN_ENTRENAMIENTO WHERE ID_PLAN_ENTRENAMIENTO = :id",
+      [id],
+      { autoCommit: true }
+    );
+    res.json({ mensaje: "Plan de entrenamiento eliminado correctamente" });
+  } catch (err) {
+    res.status(500).json({ error: "No se pudo eliminar el plan" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Modificar plan de entrenamiento
+app.put("/api/planes-entrenamiento/:id", async (req, res) => {
+  const id = req.params.id;
+  const {
+    NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, FRECUENCIA,
+    DURACION, NIVEL, TIPO, OBJETIVO, RUT, PRECIO
+  } = req.body;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      `UPDATE PLAN_ENTRENAMIENTO SET
+        NOMBRE = :NOMBRE,
+        DESCRIPCION = :DESCRIPCION,
+        FECHAINICIO = TO_DATE(:FECHAINICIO, 'YYYY-MM-DD'),
+        FECHAFIN = TO_DATE(:FECHAFIN, 'YYYY-MM-DD'),
+        FRECUENCIA = :FRECUENCIA,
+        DURACION = :DURACION,
+        NIVEL = :NIVEL,
+        TIPO = :TIPO,
+        OBJETIVO = :OBJETIVO,
+        RUT = :RUT,
+        PRECIO = :PRECIO
+      WHERE ID_PLAN_ENTRENAMIENTO = :id`,
+      {
+        NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, FRECUENCIA,
+        DURACION, NIVEL, TIPO, OBJETIVO, RUT, PRECIO, id
+      },
+      { autoCommit: true }
+    );
+    res.json({ mensaje: "Plan de entrenamiento actualizado correctamente" });
+  } catch (err) {
+    res.status(500).json({ error: "No se pudo actualizar el plan" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Obtener mensajes del foro
+app.get("/api/foro-entrenamiento", async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT * FROM FORO_ENTRENAMIENTO ORDER BY fecha_publicacion ASC`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    console.log("Mensajes en BD:", result.rows); // <-- AGREGA ESTO
+    res.json(result.rows.map(row => ({
+      id_foro: row.ID_FORO,
+      rut: row.RUT,
+      nombre: row.NOMBRE,
+      rol: row.ROL,
+      mensaje: row.MENSAJE,
+      fecha_publicacion: row.FECHA_PUBLICACION
+    })));
+  } catch (err) {
+    res.status(500).json({ error: "No se pudieron obtener los mensajes" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Enviar mensaje al foro
+app.post("/api/foro-entrenamiento", async (req, res) => {
+  const { rut, nombre, rol, mensaje } = req.body;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      `INSERT INTO FORO_ENTRENAMIENTO (ID_FORO, RUT, NOMBRE, ROL, MENSAJE, FECHA_PUBLICACION)
+       VALUES (SEQ_FORO_ENTRENAMIENTO.NEXTVAL, :rut, :nombre, :rol, :mensaje, SYSDATE)`,
+      { rut, nombre, rol, mensaje },
+      { autoCommit: true }
+    );
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: "No se pudo guardar el mensaje" });
   } finally {
     if (connection) await connection.close();
   }
@@ -676,6 +793,63 @@ app.post("/api/planes-nutricion", async (req, res) => {
     if (connection) await connection.close();
   }
 });
+
+// Eliminar plan de nutrición
+app.delete("/api/planes-nutricion/:id", async (req, res) => {
+  const id = req.params.id;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      "DELETE FROM PLAN_NUTRICION WHERE ID_PLAN_NUTRICION = :id",
+      [id],
+      { autoCommit: true }
+    );
+    res.json({ mensaje: "Plan de nutrición eliminado correctamente" });
+  } catch (err) {
+    res.status(500).json({ error: "No se pudo eliminar el plan" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Modificar plan de nutrición
+app.put("/api/planes-nutricion/:id", async (req, res) => {
+  const id = req.params.id;
+  const {
+    NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS,
+    MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT
+  } = req.body;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      `UPDATE PLAN_NUTRICION SET
+        NOMBRE = :NOMBRE,
+        DESCRIPCION = :DESCRIPCION,
+        FECHAINICIO = TO_DATE(:FECHAINICIO, 'YYYY-MM-DD'),
+        FECHAFIN = TO_DATE(:FECHAFIN, 'YYYY-MM-DD'),
+        CALORIAS_DIARIAS = :CALORIAS_DIARIAS,
+        MACRONUTRIENTES = :MACRONUTRIENTES,
+        TIPODIETA = :TIPODIETA,
+        OBJETIVO = :OBJETIVO,
+        OBSERVACIONES = :OBSERVACIONES,
+        RUT = :RUT
+      WHERE ID_PLAN_NUTRICION = :id`,
+      {
+        NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS,
+        MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT, id
+      },
+      { autoCommit: true }
+    );
+    res.json({ mensaje: "Plan de nutrición actualizado correctamente" });
+  } catch (err) {
+    res.status(500).json({ error: "No se pudo actualizar el plan" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
 //HISTORIAL
 app.get("/api/historial", async (req, res) => {
   let connection;
@@ -838,7 +1012,7 @@ app.get("/productos", async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
     const result = await connection.execute(
-      `SELECT codigo_producto, nombre, descripcion, precio, id_categoria FROM Producto`,
+      `SELECT codigo_producto, nombre, descripcion, precio, id_categoria, stock, imagen FROM Producto`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
@@ -848,7 +1022,10 @@ app.get("/productos", async (req, res) => {
       nombre: p.NOMBRE || p.nombre,
       descripcion: p.DESCRIPCION || p.descripcion,
       precio: p.PRECIO || p.precio,
-      id_categoria: p.ID_CATEGORIA || p.id_categoria
+      id_categoria: p.ID_CATEGORIA || p.id_categoria,
+      stock: p.STOCK || p.stock, // Asegúrate de que stock esté incluido,
+      imagen: p.IMAGEN || p.imagen // Asegúrate de que imagen esté incluido
+
     }));
 
     res.json(productos);
@@ -860,15 +1037,30 @@ app.get("/productos", async (req, res) => {
   }
 });
 
-app.put("/productos/:id", async (req, res) => {
+app.put("/productos/:id", upload.single("imagen"), async (req, res) => {
   const { nombre, descripcion, precio, id_categoria, stock } = req.body;
   const codigo_producto = req.params.id;
+
+  // Si hay archivo nuevo, usa ese nombre; si no, usa el nombre anterior (solo nombre, no URL)
+  let imagen = null;
+  if (req.file) {
+    imagen = req.file.filename;
+  } else if (req.body.imagen) {
+    // Si viene una URL, extrae solo el nombre del archivo
+    try {
+      const url = new URL(req.body.imagen);
+      imagen = url.pathname.split("/").pop();
+    } catch {
+      imagen = req.body.imagen; // Si ya es solo el nombre
+    }
+  }
+
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
     await connection.execute(
-      `UPDATE Producto SET nombre = :nombre, descripcion = :descripcion, precio = :precio, id_categoria = :id_categoria, stock = :stock WHERE codigo_producto = :codigo_producto`,
-      [nombre, descripcion, precio, id_categoria, stock, codigo_producto],
+      `UPDATE Producto SET nombre = :nombre, descripcion = :descripcion, precio = :precio, id_categoria = :id_categoria, stock = :stock, imagen = :imagen WHERE codigo_producto = :codigo_producto`,
+      [nombre, descripcion, precio, id_categoria, stock, imagen, codigo_producto],
       { autoCommit: true }
     );
     res.json({ mensaje: "Producto actualizado correctamente" });
@@ -936,13 +1128,14 @@ app.post("/api/reservas", async (req, res) => {
     // Inserta cada producto reservado
     for (const p of productos) {
       await connection.execute(
-        `INSERT INTO reserva_producto (id_reserva, fecha_reserva, cantidad, rut, dvrut, codigo_producto)
-     VALUES (SEQ_RESERVA.NEXTVAL, SYSDATE, :cantidad, :rut, :dvrut, :codigo_producto)`,
+        `INSERT INTO reserva_producto (id_reserva, fecha_reserva, cantidad, rut, dvrut, codigo_producto, imagen)
+     VALUES (SEQ_RESERVA.NEXTVAL, SYSDATE, :cantidad, :rut, :dvrut, :codigo_producto, :imagen)`,
         [
           p.cantidad,
           usuario.rut,
           usuario.dvrut,
-          p.codigo_producto
+          p.codigo_producto,
+          p.imagen || null // Asegúrate de que la imagen sea opcional
         ],
         { autoCommit: false }
       );

@@ -4,3 +4,4 @@ npm install express cors transbank-sdk@
 npm install nodemailer
 npm install pdfkit
 npm install twilio
+npm install multer

@@ -1,5 +1,3 @@
-
-
 module.exports = {
   user: "Base_Datos",
   password: "Base_Datos",

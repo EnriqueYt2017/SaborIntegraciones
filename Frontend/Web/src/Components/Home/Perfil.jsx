@@ -95,7 +95,9 @@ function Perfil() {
                                     style={{ color: "#fff" }}
                                     onClick={() => setMenuVisible(!menuVisible)}
                                 >
-                                    {(user.primer_nombre || "Usuario").toUpperCase()}
+                                    {user && (user.primer_nombre || user.PRIMER_NOMBRE)
+                                        ? (user.primer_nombre || user.PRIMER_NOMBRE).toUpperCase()
+                                        : "USUARIO"}
                                 </button>
                                 <ul className={`dropdown-menu${menuVisible ? " show" : ""}`}>
                                     <li>

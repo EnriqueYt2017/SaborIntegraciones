@@ -36,7 +36,7 @@ function Home() {
     }, [navigate]);
 
     useEffect(() => {
-         axios.get('http://localhost:5000/api/comentarios')
+        axios.get('http://localhost:5000/api/comentarios')
             .then(res => setComentarios(res.data))
             .catch(() => setComentarios([]));
     }, []);
@@ -123,12 +123,12 @@ function Home() {
                                     </li>
                                     <li>
                                         {user && user.id_rol !== 1 && (
-                                        <button
-                                            className="dropdown-item"
-                                            onClick={() => navigate("/Dashboard/Inicio")}
-                                        >
-                                            Dashboard
-                                        </button>
+                                            <button
+                                                className="dropdown-item"
+                                                onClick={() => navigate("/Dashboard/Inicio")}
+                                            >
+                                                Dashboard
+                                            </button>
                                         )}
                                     </li>
                                     <li>
@@ -281,12 +281,11 @@ function Home() {
                             <li style={{ margin: "0.5rem 0", padding: "0.5rem" }}>Cargando...</li>
                         )}
                         {productosDestacados.map(producto => (
-                            <li key={producto.id} style={{ display: "flex", alignItems: "center", margin: "0.5rem 0", padding: "0.5rem", borderBottom: "1px solid #eee" }}>
-                                {/* Usa producto.icono si tienes, si no, un icono genérico */}
+                            <li key={producto.codigo_producto || producto.id} style={{ display: "flex", alignItems: "center", margin: "0.5rem 0", padding: "0.5rem", borderBottom: "1px solid #eee" }}>
                                 <img
-                                    src={producto.icono || "https://img.icons8.com/fluency/48/fast-moving-consumer-goods.png"}
+                                    src={producto.imagen || "https://img.icons8.com/fluency/48/fast-moving-consumer-goods.png"}
                                     alt={producto.nombre}
-                                    style={{ width: 32, height: 32, marginRight: 12 }}
+                                    style={{ width: 48, height: 48, objectFit: "cover", borderRadius: 8, marginRight: 12, background: "#f0f0f0" }}
                                 />
                                 <span>{producto.nombre}</span>
                             </li>
@@ -305,6 +304,7 @@ function Home() {
                 margin: "2rem 0",
                 flexWrap: "wrap"
             }}>
+
                 {/* Planes Entrenamiento */}
                 <div style={{
                     background: "#fff",
@@ -321,14 +321,37 @@ function Home() {
                     <div style={{
                         width: "100%",
                         height: "160px",
-                        background: "#f0f0f0",
                         borderRadius: "8px",
                         marginBottom: "1.5rem",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center"
+                        justifyContent: "center",
+                        position: "relative",
+                        overflow: "hidden",
+                        background: "linear-gradient(135deg, #0f2027 0%, #2c5364 100%)"
                     }}>
-                        <span style={{ color: "#bbb" }}>Imagen</span>
+                        {/* Fondo épico animado */}
+                        <div style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: "100%",
+                            zIndex: 1,
+                            background: "radial-gradient(circle at 70% 30%, #00c6ff88 0%, #0072ff44 60%, transparent 100%)"
+                        }} />
+                        <div style={{
+                            position: "absolute",
+                            bottom: "-30px",
+                            right: "-30px",
+                            width: "100px",
+                            height: "100px",
+                            background: "rgba(255,255,255,0.08)",
+                            borderRadius: "50%",
+                            filter: "blur(8px)",
+                            zIndex: 1
+                        }} />
+                        <img src="https://img.icons8.com/color/96/000000/dumbbell.png" alt="Entrenamiento" style={{ width: 80, opacity: 0.92, zIndex: 2, filter: "drop-shadow(0 4px 24px #00c6ff88)" }} />
                     </div>
                     <button
                         style={{
@@ -363,14 +386,37 @@ function Home() {
                     <div style={{
                         width: "100%",
                         height: "160px",
-                        background: "#f0f0f0",
                         borderRadius: "8px",
                         marginBottom: "1.5rem",
                         display: "flex",
                         alignItems: "center",
-                        justifyContent: "center"
+                        justifyContent: "center",
+                        position: "relative",
+                        overflow: "hidden",
+                        background: "linear-gradient(135deg, #11998e 0%, #38ef7d 100%)"
                     }}>
-                        <span style={{ color: "#bbb" }}>Imagen</span>
+                        {/* Fondo épico animado */}
+                        <div style={{
+                            position: "absolute",
+                            top: 0,
+                            left: 0,
+                            width: "100%",
+                            height: "100%",
+                            zIndex: 1,
+                            background: "radial-gradient(circle at 30% 70%, #fffde488 0%, #f9d42344 60%, transparent 100%)"
+                        }} />
+                        <div style={{
+                            position: "absolute",
+                            top: "-30px",
+                            left: "-30px",
+                            width: "100px",
+                            height: "100px",
+                            background: "rgba(255,255,255,0.08)",
+                            borderRadius: "50%",
+                            filter: "blur(8px)",
+                            zIndex: 1
+                        }} />
+                        <img src="https://img.icons8.com/color/96/000000/avocado.png" alt="Nutrición" style={{ width: 80, opacity: 0.92, zIndex: 2, filter: "drop-shadow(0 4px 24px #38ef7d88)" }} />
                     </div>
                     <button
                         style={{
