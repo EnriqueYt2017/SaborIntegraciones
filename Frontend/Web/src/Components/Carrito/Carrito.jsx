@@ -136,8 +136,6 @@ function Carrito() {
     const [carrito, setCarrito] = useState([]);
     const [esCliente, setEsCliente] = useState(false);
 
-    // ...existing code...
-
     useEffect(() => {
         const carritoGuardado = JSON.parse(localStorage.getItem("carrito")) || [];
         setCarrito(carritoGuardado);
@@ -179,8 +177,6 @@ function Carrito() {
         }
     }, []);
 
-    // ...existing code...
-
     // Calcula el total con descuento si corresponde
     const totalSinDescuento = carrito.reduce((acc, item) => acc + (item.precio * (item.cantidad || 1)), 0);
     const total = esCliente ? parseFloat((totalSinDescuento * 0.8).toFixed(2)) : totalSinDescuento;
@@ -192,6 +188,12 @@ function Carrito() {
 
     const eliminarProducto = (codigo_producto) => {
         const nuevoCarrito = carrito.filter(item => item.codigo_producto !== codigo_producto);
+        setCarrito(nuevoCarrito);
+        localStorage.setItem("carrito", JSON.stringify(nuevoCarrito));
+    };
+
+    const eliminarPlan = (idPlan) => {
+        const nuevoCarrito = carrito.filter(item => item.ID_PLAN_ENTRENAMIENTO !== idPlan);
         setCarrito(nuevoCarrito);
         localStorage.setItem("carrito", JSON.stringify(nuevoCarrito));
     };
@@ -220,7 +222,6 @@ function Carrito() {
             alert("Error al iniciar el pago: " + (error.response?.data?.error || error.message));
             console.error(error.response?.data || error);
         }
-
     };
 
     const volverAProductos = () => {
@@ -318,14 +319,14 @@ function Carrito() {
             </div>
             <div style={styles.container}>
 
-                <h2 style={styles.title}>Listado de Productos</h2>
+                <h2 style={styles.title}>Carrito de Compras</h2>
 
                 {carrito.length === 0 ? (
                     <div style={styles.emptyContainer}>
                         <span style={styles.emptyIcon} role="img" aria-label="carrito">
                             🛒
                         </span>
-                        <div style={styles.emptyText}>No hay productos</div>
+                        <div style={styles.emptyText}>No hay productos ni suscripciones</div>
                         <button style={styles.volverBtn} onClick={volverAProductos}>
                             Volver
                         </button>
@@ -336,7 +337,7 @@ function Carrito() {
                             <thead>
                                 <tr>
                                     <th style={styles.th}></th>
-                                    <th style={styles.th}>Producto</th>
+                                    <th style={styles.th}>Producto / Plan</th>
                                     <th style={styles.th}>Precio</th>
                                     <th style={styles.th}>Cantidad</th>
                                     <th style={styles.th}>Subtotal</th>
@@ -344,26 +345,44 @@ function Carrito() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {carrito.map(item => (
-                                    <tr key={item.codigo_producto}>
+                                {carrito.map((item, idx) => (
+                                    <tr key={item.codigo_producto || item.ID_PLAN_ENTRENAMIENTO || idx}>
                                         <td style={styles.td}>
                                             {item.imagen ? (
                                                 <img src={item.imagen} alt={item.nombre} style={styles.productImg} />
+                                            ) : item.tipo === "plan_entrenamiento" ? (
+                                                <span role="img" aria-label="plan" style={{ fontSize: 40 }}>🏋️‍♂️</span>
                                             ) : (
                                                 <span role="img" aria-label="producto" style={{ fontSize: 56 }}>🛍️</span>
                                             )}
                                         </td>
-                                        <td style={styles.td}>{item.nombre}</td>
+                                        <td style={styles.td}>
+                                            {item.nombre}
+                                            {item.tipo === "plan_entrenamiento" && (
+                                                <span style={{ color: "#43e97b", fontWeight: 600, marginLeft: 8, fontSize: 13 }}>
+                                                    (Plan Entrenamiento)
+                                                </span>
+                                            )}
+                                        </td>
                                         <td style={styles.td}>${item.precio}</td>
                                         <td style={styles.td}>{item.cantidad}</td>
-                                        <td style={styles.td}>${item.precio * item.cantidad}</td>
+                                        <td style={styles.td}>${item.precio * (item.cantidad || 1)}</td>
                                         <td style={styles.td}>
-                                            <button
-                                                style={styles.eliminarBtn}
-                                                onClick={() => eliminarProducto(item.codigo_producto)}
-                                            >
-                                                Eliminar
-                                            </button>
+                                            {item.tipo === "plan_entrenamiento" ? (
+                                                <button
+                                                    style={styles.eliminarBtn}
+                                                    onClick={() => eliminarPlan(item.ID_PLAN_ENTRENAMIENTO)}
+                                                >
+                                                    Eliminar
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    style={styles.eliminarBtn}
+                                                    onClick={() => eliminarProducto(item.codigo_producto)}
+                                                >
+                                                    Eliminar
+                                                </button>
+                                            )}
                                         </td>
                                     </tr>
                                 ))}

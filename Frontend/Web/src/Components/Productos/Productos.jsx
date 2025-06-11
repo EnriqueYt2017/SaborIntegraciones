@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 import Imagelogo from '../../assets/icono-logo.png';
 function Productos() {
@@ -456,20 +457,24 @@ function Productos() {
                                     Stock: {producto.stock > 0 ? producto.stock : "Sin stock"}
                                 </div>
                                 <div style={{ display: "flex", gap: 8, marginTop: "auto" }}>
-                                    <button style={{
-                                        background: "linear-gradient(90deg, #43e97b 0%, #38f9d7 100%)",
-                                        color: "#fff",
-                                        border: "none",
-                                        borderRadius: 8,
-                                        padding: "10px 24px",
+                                    <div style={{
                                         fontWeight: 700,
-                                        fontSize: 16,
-                                        cursor: "pointer",
-                                        boxShadow: "0 2px 8px #43e97b30",
-                                        transition: "background 0.2s"
+                                        fontSize: 20,
+                                        marginBottom: 8,
+                                        textAlign: "center",
+                                        color: "#222"
                                     }}>
-                                        Ver información
-                                    </button>
+                                        <Link
+                                            to={`/productos/${producto.codigo_producto}`}
+                                            style={{
+                                                color: "#43e97b",
+                                                textDecoration: "underline",
+                                                cursor: "pointer"
+                                            }}
+                                        >
+                                            Ver Detalle
+                                        </Link>
+                                    </div>
                                     <button className="carrito" style={{
                                         background: "#fff",
                                         border: "2px solid #43e97b",
@@ -580,6 +585,19 @@ function Productos() {
                     )}
                 </div>
             </div>
+            {/* Footer */}
+            <footer style={{
+                background: "#212529",
+                color: "#fff",
+                textAlign: "center",
+                padding: "1.2rem 0",
+                marginTop: "2rem",
+                borderTopLeftRadius: 12,
+                borderTopRightRadius: 12,
+                fontSize: "1rem"
+            }}>
+                © {new Date().getFullYear()} Sabor Integraciones. Todos los derechos reservados.
+            </footer>
         </div>
     );
 }

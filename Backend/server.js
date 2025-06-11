@@ -1374,14 +1374,15 @@ app.post("/contactenos", async (req, res) => {
 
 //COMENTARIOS
 // Obtener comentarios (ordenados por fecha)
-app.get("/api/comentarios", async (req, res) => {
+app.get("/api/comentarios/:codigo_producto", async (req, res) => {
+  const codigo_producto = req.params.codigo_producto;
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
     const result = await connection.execute(
-      `SELECT * FROM Comentarios ORDER BY fecha_publicacion DESC`,
-      [],
-      { outFormat: oracledb.OUT_FORMAT_OBJECT } // <-- Agrega esto
+      `SELECT * FROM Comentarios WHERE codigo_producto = :codigo_producto ORDER BY fecha_publicacion DESC`,
+      [codigo_producto],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
     res.json(result.rows.map(row => ({
       id_comentario: row.ID_COMENTARIO,
@@ -1399,7 +1400,7 @@ app.get("/api/comentarios", async (req, res) => {
 
 // Guardar nuevo comentario
 app.post("/api/comentarios", async (req, res) => {
-  const { valoracion, texto } = req.body;
+  const { codigo_producto, valoracion, texto } = req.body;
   const fecha_publicacion = new Date();
   const id_comentario = Date.now();
 
@@ -1407,16 +1408,56 @@ app.post("/api/comentarios", async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
     await connection.execute(
-      `INSERT INTO Comentarios (id_comentario, valoracion, fecha_publicacion, texto)
-             VALUES (:id_comentario, :valoracion, :fecha_publicacion, :texto)`,
-      [id_comentario, valoracion, fecha_publicacion, texto],
+      `INSERT INTO Comentarios (id_comentario, codigo_producto, valoracion, fecha_publicacion, texto)
+             VALUES (:id_comentario, :codigo_producto, :valoracion, :fecha_publicacion, :texto)`,
+      [id_comentario, codigo_producto, valoracion, fecha_publicacion, texto],
       { autoCommit: true }
     );
-    // Opcional: guardar el nombre en otra tabla o asociar con usuario si tienes login
     res.json({ ok: true });
   } catch (err) {
     console.error("Error al guardar comentario:", err);
     res.status(500).json({ error: "No se pudo guardar el comentario" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+//SUSCRIPCIONES
+app.post("/api/suscripciones", async (req, res) => {
+  const { ID_PLAN, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, OBJETIVO, RUT, TIPO_PLAN } = req.body;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      `INSERT INTO SUSCRIPCIONES 
+        (ID_SUSCRIPCION, ID_PLAN, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, OBJETIVO, RUT, TIPO_PLAN)
+       VALUES 
+        (SEQ_SUSCRIPCIONES.NEXTVAL, :ID_PLAN, :NOMBRE, :DESCRIPCION, TO_DATE(:FECHAINICIO, 'YYYY-MM-DD'), TO_DATE(:FECHAFIN, 'YYYY-MM-DD'), :OBJETIVO, :RUT, :TIPO_PLAN)`,
+      { ID_PLAN, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, OBJETIVO, RUT, TIPO_PLAN },
+      { autoCommit: true }
+    );
+    res.status(201).json({ message: "Suscripción creada correctamente" });
+  } catch (err) {
+    console.error("Error al guardar suscripción:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.get("/api/suscripciones/:rut", async (req, res) => {
+  const rut = req.params.rut;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT * FROM SUSCRIPCIONES WHERE RUT = :rut`,
+      [rut],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   } finally {
     if (connection) await connection.close();
   }

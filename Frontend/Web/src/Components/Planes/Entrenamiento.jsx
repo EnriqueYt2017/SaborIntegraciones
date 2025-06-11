@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useEffect, useState } from 'react';
 import Imagelogo from '../../assets/icono-logo.png';
 import { useNavigate } from "react-router-dom";
@@ -29,6 +30,7 @@ const Entrenamiento = () => {
     const [editando, setEditando] = useState(false);
     const [planEditandoId, setPlanEditandoId] = useState(null);
 
+
     useEffect(() => {
         fetch("http://localhost:5000/api/planes-entrenamiento")
             .then(res => res.json())
@@ -40,21 +42,19 @@ const Entrenamiento = () => {
         if (userData && userData !== "undefined" && userData !== "{}" && userData !== "null") {
             try {
                 const parsedUser = JSON.parse(userData);
-                if (parsedUser && Object.keys(parsedUser).length > 0) {
-                    setUser(parsedUser);
-                    // Obtener suscripciones del usuario
-                    fetch(`http://localhost:5000/api/suscripciones/${parsedUser.rut || parsedUser.RUT}`)
-                        .then(res => res.json())
-                        .then(data => setSuscripciones(data || []));
-                } else {
-                    navigate("/login");
-                }
+                setUser(parsedUser); // <-- AGREGA ESTA LÍNEA
+                fetch(`http://localhost:5000/api/suscripciones/${parsedUser.rut || parsedUser.RUT}`)
+                    .then(res => res.json())
+                    .then(data => setSuscripciones(data || []));
             } catch (error) {
                 console.error("Error al parsear usuario:", error);
                 navigate("/login");
             }
+        } else {
+            navigate("/login");
         }
     }, []);
+
 
     const cerrarSesion = () => {
         localStorage.removeItem("token");
@@ -108,6 +108,47 @@ const Entrenamiento = () => {
         setEditando(false);
         setPlanEditandoId(null);
     };
+
+
+    const agregarPlanAlCarrito = async (plan) => {
+        // El carrito puede tener productos y planes, diferenciados por tipo
+        const carrito = JSON.parse(localStorage.getItem("carrito")) || [];
+        // Evita duplicados de planes
+        if (carrito.some(item => item.tipo === "plan_entrenamiento" && item.ID_PLAN_ENTRENAMIENTO === plan.ID_PLAN_ENTRENAMIENTO)) {
+            alert("Este plan ya está en el carrito.");
+            return;
+        }
+
+        carrito.push({
+            tipo: "plan_entrenamiento",
+            ID_PLAN_ENTRENAMIENTO: plan.ID_PLAN_ENTRENAMIENTO,
+            nombre: plan.NOMBRE,
+            descripcion: plan.DESCRIPCION,
+            precio: Number(plan.PRECIO),
+            cantidad: 1, // Siempre 1 para planes
+            planData: plan // Guarda todo el plan por si lo necesitas luego
+        });
+
+        localStorage.setItem("carrito", JSON.stringify(carrito));
+        alert("Plan agregado al carrito. Ve al carrito para pagar tu suscripción.");
+
+        // Guardar suscripción en la base de datos (solo si quieres hacerlo al agregar al carrito, normalmente es después del pago)
+        /*         await fetch("http://localhost:5000/api/suscripciones", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        ID_PLAN: plan.ID_PLAN_ENTRENAMIENTO,
+                        NOMBRE: plan.NOMBRE,
+                        DESCRIPCION: plan.DESCRIPCION,
+                        FECHAINICIO: plan.FECHAINICIO,
+                        FECHAFIN: plan.FECHAFIN,
+                        OBJETIVO: plan.OBJETIVO,
+                        RUT: user.rut || user.RUT,
+                        TIPO_PLAN: "ENTRENAMIENTO"
+                    })
+                }); */
+    };
+
 
     // Eliminar plan
     const handleEliminar = async (id) => {
@@ -169,37 +210,6 @@ const Entrenamiento = () => {
             } else {
                 alert("Error al agregar el plan");
             }
-        }
-    };
-
-    // Suscribirse solo una vez
-    const handleSuscribirme = async (plan) => {
-        const rutUsuario = user?.rut || user?.RUT || "";
-        const yaSuscrito = suscripciones.some(s => s.ID_PLAN === plan.ID_PLAN_ENTRENAMIENTO);
-        if (yaSuscrito) {
-            alert("Ya estás suscrito a este plan.");
-            return;
-        }
-        const suscripcion = {
-            ID_PLAN: plan.ID_PLAN_ENTRENAMIENTO,
-            NOMBRE: plan.NOMBRE,
-            DESCRIPCION: plan.DESCRIPCION,
-            FECHAINICIO: plan.FECHAINICIO ? plan.FECHAINICIO.substring(0, 10) : '',
-            FECHAFIN: plan.FECHAFIN ? plan.FECHAFIN.substring(0, 10) : '',
-            OBJETIVO: plan.OBJETIVO,
-            RUT: rutUsuario,
-            TIPO_PLAN: "ENTRENAMIENTO"
-        };
-        const res = await fetch("http://localhost:5000/api/suscripciones", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(suscripcion)
-        });
-        if (res.ok) {
-            alert("¡Te has suscrito exitosamente!");
-            setSuscripciones([...suscripciones, { ID_PLAN: plan.ID_PLAN_ENTRENAMIENTO }]);
-        } else {
-            alert("Error al suscribirse");
         }
     };
 
@@ -308,7 +318,7 @@ const Entrenamiento = () => {
                             </>
                         )}
                         <li className="nav-item">
-                            <a href="carrito" className="nav-link">
+                            <a href="/carrito" className="nav-link">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-cart" viewBox="0 0 16 16">
                                     <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l1.313 7h8.17l1.313-7zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2" />
                                 </svg>
@@ -469,97 +479,100 @@ const Entrenamiento = () => {
                             gap: 28,
                             marginBottom: 32
                         }}>
-                            {planesPagina.map(plan => (
-                                <div key={plan.ID_PLAN_ENTRENAMIENTO} style={{
-                                    background: "#fff",
-                                    borderRadius: 14,
-                                    boxShadow: "0 2px 12px rgba(67,233,123,0.09)",
-                                    padding: 28,
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    position: "relative",
-                                    border: "1px solid #e6eaf0"
-                                }}>
-                                    <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
-                                        <h3 style={{ color: "#43e97b", fontWeight: 700, fontSize: 22, margin: 0, flex: 1 }}>{plan.NOMBRE}</h3>
-                                        {puedeEditar && (
-                                            <div style={{ display: "flex", gap: 8 }}>
-                                                <button
-                                                    title="Editar"
-                                                    style={{
-                                                        background: "none",
-                                                        border: "none",
-                                                        color: "#43e97b",
-                                                        cursor: "pointer",
-                                                        fontSize: 18,
-                                                        padding: 4
-                                                    }}
-                                                    onClick={() => handleEditar(plan)}
-                                                >
-                                                    <FaPen />
-                                                </button>
-                                                <button
-                                                    title="Eliminar"
-                                                    style={{
-                                                        background: "none",
-                                                        border: "none",
-                                                        color: "#ef4444",
-                                                        cursor: "pointer",
-                                                        fontSize: 18,
-                                                        padding: 4
-                                                    }}
-                                                    onClick={() => handleEliminar(plan.ID_PLAN_ENTRENAMIENTO)}
-                                                >
-                                                    <FaTrashAlt />
-                                                </button>
-                                                <button
-                                                    title="Mensaje al cliente"
-                                                    style={{
-                                                        background: "none",
-                                                        border: "none",
-                                                        color: "#38b6ff",
-                                                        cursor: "pointer",
-                                                        fontSize: 18,
-                                                        padding: 4
-                                                    }}
-                                                    onClick={() => handleMensajeCliente(plan)}
-                                                >
-                                                    <FaComments />
-                                                </button>
-                                            </div>
-                                        )}
+                            {planesPagina.map(plan => {
+                                const yaSuscrito = suscripciones.some(
+                                    s => s.ID_PLAN === plan.ID_PLAN_ENTRENAMIENTO && String(s.RUT) === String(user.rut || user.RUT)
+                                );
+                                return (
+
+                                    <div key={plan.ID_PLAN_ENTRENAMIENTO} style={{
+                                        background: "#fff",
+                                        borderRadius: 14,
+                                        boxShadow: "0 2px 12px rgba(67,233,123,0.09)",
+                                        padding: 28,
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        position: "relative",
+                                        border: "1px solid #e6eaf0"
+                                    }}>
+                                        <div style={{ display: "flex", alignItems: "center", marginBottom: 10 }}>
+                                            <h3 style={{ color: "#43e97b", fontWeight: 700, fontSize: 22, margin: 0, flex: 1 }}>{plan.NOMBRE}</h3>
+                                            {puedeEditar && (
+                                                <div style={{ display: "flex", gap: 8 }}>
+                                                    <button
+                                                        title="Editar"
+                                                        style={{
+                                                            background: "none",
+                                                            border: "none",
+                                                            color: "#43e97b",
+                                                            cursor: "pointer",
+                                                            fontSize: 18,
+                                                            padding: 4
+                                                        }}
+                                                        onClick={() => handleEditar(plan)}
+                                                    >
+                                                        <FaPen />
+                                                    </button>
+                                                    <button
+                                                        title="Eliminar"
+                                                        style={{
+                                                            background: "none",
+                                                            border: "none",
+                                                            color: "#ef4444",
+                                                            cursor: "pointer",
+                                                            fontSize: 18,
+                                                            padding: 4
+                                                        }}
+                                                        onClick={() => handleEliminar(plan.ID_PLAN_ENTRENAMIENTO)}
+                                                    >
+                                                        <FaTrashAlt />
+                                                    </button>
+                                                    <button
+                                                        title="Mensaje al cliente"
+                                                        style={{
+                                                            background: "none",
+                                                            border: "none",
+                                                            color: "#38b6ff",
+                                                            cursor: "pointer",
+                                                            fontSize: 18,
+                                                            padding: 4
+                                                        }}
+                                                        onClick={() => handleMensajeCliente(plan)}
+                                                    >
+                                                        <FaComments />
+                                                    </button>
+                                                </div>
+                                            )}
+                                        </div>
+                                        <div style={{ color: "#444", fontSize: 15, marginBottom: 10 }}>{plan.DESCRIPCION}</div>
+                                        <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
+                                            <span style={badgeStyle}>Inicio: {plan.FECHAINICIO ? plan.FECHAINICIO.substring(0, 10) : ''}</span>
+                                            <span style={badgeStyle}>Fin: {plan.FECHAFIN ? plan.FECHAFIN.substring(0, 10) : ''}</span>
+                                            <span style={badgeStyle}>Frecuencia: {plan.FRECUENCIA}</span>
+                                            <span style={badgeStyle}>Duración: {plan.DURACION} min</span>
+                                            <span style={badgeStyle}>Nivel: {plan.NIVEL}</span>
+                                            <span style={badgeStyle}>Tipo: {plan.TIPO}</span>
+                                            <span style={badgeStyle}>Objetivo: {plan.OBJETIVO}</span>
+                                        </div>
+                                        <div style={{ fontWeight: 700, color: "#43e97b", fontSize: 18, marginBottom: 18 }}>
+                                            Precio: ${plan.PRECIO}
+                                        </div>
+                                        <button
+                                            disabled={yaSuscrito}
+                                            style={{
+                                                background: yaSuscrito ? "#e0e0e0" : "linear-gradient(90deg, #43e97b 0%, #38f9d7 100%)",
+                                                color: yaSuscrito ? "#888" : "#fff",
+                                                cursor: yaSuscrito ? "not-allowed" : "pointer"
+                                            }}
+                                            onClick={() => {
+                                                if (!yaSuscrito) agregarPlanAlCarrito(plan);
+                                            }}
+                                        >
+                                            {yaSuscrito ? "Ya está suscrito" : "Suscribirme"}
+                                        </button>
                                     </div>
-                                    <div style={{ color: "#444", fontSize: 15, marginBottom: 10 }}>{plan.DESCRIPCION}</div>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginBottom: 10 }}>
-                                        <span style={badgeStyle}>Inicio: {plan.FECHAINICIO ? plan.FECHAINICIO.substring(0, 10) : ''}</span>
-                                        <span style={badgeStyle}>Fin: {plan.FECHAFIN ? plan.FECHAFIN.substring(0, 10) : ''}</span>
-                                        <span style={badgeStyle}>Frecuencia: {plan.FRECUENCIA}</span>
-                                        <span style={badgeStyle}>Duración: {plan.DURACION} min</span>
-                                        <span style={badgeStyle}>Nivel: {plan.NIVEL}</span>
-                                        <span style={badgeStyle}>Tipo: {plan.TIPO}</span>
-                                        <span style={badgeStyle}>Objetivo: {plan.OBJETIVO}</span>
-                                    </div>
-                                    <div style={{ fontWeight: 700, color: "#43e97b", fontSize: 18, marginBottom: 18 }}>
-                                        Precio: ${plan.PRECIO}
-                                    </div>
-                                    <button
-                                        style={{
-                                            background: "linear-gradient(90deg, #43e97b 0%, #38f9d7 100%)",
-                                            color: "#fff",
-                                            border: "none",
-                                            borderRadius: 6,
-                                            padding: "10px 0",
-                                            fontWeight: 600,
-                                            fontSize: 16,
-                                            cursor: "pointer",
-                                            marginTop: "auto"
-                                        }}
-                                        onClick={() => handleSuscribirme(plan)}
-                                    >
-                                        Suscribirme
-                                    </button>
-                                </div>
-                            ))}
+                                );
+                            })}
                         </div>
 
                         {/* Paginador */}

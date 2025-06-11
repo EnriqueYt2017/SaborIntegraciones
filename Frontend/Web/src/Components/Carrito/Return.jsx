@@ -22,7 +22,6 @@ function Return() {
         ? parseFloat((totalSinDescuento * 0.8).toFixed(2))
         : totalSinDescuento;
 
-    // ...existing code...
     useEffect(() => {
         async function confirmarPago() {
             if (!token_ws) {
@@ -55,22 +54,55 @@ function Return() {
                     ? parseFloat((totalSinDesc * 0.8).toFixed(2))
                     : totalSinDesc;
 
-                // Llama al backend para confirmar el pago y guardar el pedido
+                // SEPARA PRODUCTOS Y PLANES
+                const productos = carrito.filter(item => item.tipo !== "plan_entrenamiento" && item.tipo !== "plan_nutricion");
+                const planes = carrito.filter(item => item.tipo === "plan_entrenamiento" || item.tipo === "plan_nutricion");
+
+                // Llama al backend para confirmar el pago y guardar el pedido SOLO CON PRODUCTOS
                 const res = await axios.post("http://localhost:5000/webpay/commit", {
                     token_ws,
                     rut: usuarioData?.rut,
                     direccion: usuarioData?.direccion,
                     observaciones: "",
                     total: totalConDesc,
-                    carrito
+                    carrito: productos
                 });
+
+                const formatFecha = (fecha) => {
+                    if (!fecha) return null;
+                    // Si ya es string YYYY-MM-DD, retorna igual
+                    if (/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return fecha;
+                    // Si es Date, formatea
+                    const d = new Date(fecha);
+                    return d.toISOString().slice(0, 10);
+                };
 
                 if (res.data.status === "AUTHORIZED") {
                     setEstado("exito");
                     setDetalle({
                         ...res.data,
-                        carrito
+                        carrito: productos // Solo productos en el voucher/pedido
                     });
+
+
+                    // Guardar suscripciones de planes después del pago exitoso
+                    for (const item of planes) {
+                        await fetch("http://localhost:5000/api/suscripciones", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                ID_PLAN: item.ID_PLAN_ENTRENAMIENTO || item.ID_PLAN_NUTRICION,
+                                NOMBRE: item.nombre,
+                                DESCRIPCION: item.descripcion,
+                                FECHAINICIO: formatFecha(item.planData.FECHAINICIO),
+                                FECHAFIN: formatFecha(item.planData.FECHAFIN),
+                                OBJETIVO: item.planData.OBJETIVO,
+                                RUT: usuarioData.rut || usuarioData.RUT,
+                                TIPO_PLAN: item.tipo === "plan_entrenamiento" ? "ENTRENAMIENTO" : "NUTRICION"
+                            })
+                        });
+                    }
+
                     localStorage.setItem("carrito", JSON.stringify([]));
                 } else {
                     setEstado("rechazo");

@@ -12,6 +12,7 @@ import Carrito from "./Components/Carrito/carrito";
 import Return from "./Components/Carrito/Return";
 import Seguimiento from "./Components/Pedidos/Seguimiento";
 import Reserva from "./Components/Productos/Reserva";
+import VerDetalleProducto from "./Components/Productos/VerDetalleProducto";
 //Planes
 import Entrenamiento from "./Components/Planes/Entrenamiento"
 import Nutricion from "./Components/Planes/Nutricion";
@@ -34,6 +35,7 @@ const App = () => {
                 <Route path="/carrito" element={<Carrito />} />
                 <Route path="/return" element={<Return />} />
                 <Route path="/seguimiento" element={<Seguimiento />} />
+                <Route path="/productos/:id" element={<VerDetalleProducto />} />
                 {/* 🔹 Rutas de productos y servicios */}
                 <Route path="/productos" element={<Productos />} />
                 <Route path="/servicios" element={<Servicios />} />
