@@ -13,10 +13,56 @@ const path = require("path");
 const logo = path.join(__dirname, "routes", "icono-logo.png");
 const twilio = require('twilio');
 const multer = require("multer");
+const dbConfig = require("./dbConfig");
+//GMAIL
+const session = require("express-session");
+const passport = require("passport");
+const GoogleStrategy = require("passport-google-oauth20").Strategy;
+
+app.use(session({
+  secret: "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",
+  resave: false,
+  saveUninitialized: true
+}));
+
+app.use(passport.initialize());
+app.use(passport.session());
+
+// Serialización de usuario
+passport.serializeUser((user, done) => {
+  done(null, user);
+});
+passport.deserializeUser((user, done) => {
+  done(null, user);
+});
+
+// Configura la estrategia de Google
+passport.use(new GoogleStrategy({
+  clientID: "355316018621-3lhs9of0a3cgl7osov8rjp2jc0gagj0v.apps.googleusercontent.com",
+  clientSecret: "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",
+  callbackURL: "/auth/google/callback"
+},
+  async (accessToken, refreshToken, profile, done) => {
+    // Aquí puedes buscar/crear el usuario en tu BD
+    // Ejemplo simple:
+    const user = {
+      googleId: profile.id,
+      nombre: profile.displayName,
+      correo: profile.emails[0].value
+    };
+    return done(null, user);
+  }
+));
+
+app.get("/auth/google",
+  passport.authenticate("google", { scope: ["profile", "email"] })
+);
+
+
+//////////////////FIN///////////////////////////////////
 
 app.use("/uploads", express.static("uploads"));
 dotenv.config();
-const dbConfig = require("./dbConfig");
 app.use(express.json());
 app.use(cors());
 
@@ -423,54 +469,68 @@ app.get("/perfil", async (req, res) => {
 });
 
 app.put("/perfil", async (req, res) => {
-  console.log("Solicitud recibida en /perfil:", req.body);
   const token = req.headers.authorization?.split(" ")[1];
   if (!token) return res.status(401).json({ error: "No autorizado" });
 
   let connection;
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "default_secret_key");
-    const { rut } = decoded;
-    let { primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo } = req.body;
+    const rutToken = decoded.rut;
+    let { rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo } = req.body;
 
     connection = await oracledb.getConnection(dbConfig);
 
-    // Si no viene correo, obtén el actual de la BD
-    if (!correo) {
-      const result = await connection.execute(
-        `SELECT correo FROM Usuarios WHERE rut = :rut`,
-        [rut],
-        { outFormat: oracledb.OUT_FORMAT_OBJECT }
-      );
-      correo = result.rows[0]?.CORREO || result.rows[0]?.correo || null;
-      if (!correo) {
-        return res.status(400).json({ error: "No se encontró un correo válido para este usuario." });
+    // Obtén el usuario actual por RUT del token
+    const userResult = await connection.execute(
+      `SELECT rut, dvrut FROM Usuarios WHERE rut = :rut`,
+      [rutToken],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const usuarioActual = userResult.rows[0];
+
+    // Solo permitir editar si el rut actual es temporal (8 dígitos) y dvrut es "0"
+    const esRutTemporal = usuarioActual && usuarioActual.RUT && /^\d{8}$/.test(usuarioActual.RUT) && usuarioActual.DVRUT === "0";
+
+    if (!esRutTemporal) {
+      // Si no es temporal, no permitir editar rut/dvrut
+      rut = usuarioActual.RUT;
+      dvrut = usuarioActual.DVRUT;
+    } else {
+      // Si quiere poner un rut, verifica que no exista (excepto si es el mismo usuario)
+      if (rut && dvrut) {
+        const existeRut = await connection.execute(
+          `SELECT rut FROM Usuarios WHERE rut = :rut AND dvrut = :dvrut AND rut <> :rutToken`,
+          [rut, dvrut, rutToken],
+          { outFormat: oracledb.OUT_FORMAT_OBJECT }
+        );
+        if (existeRut.rows.length > 0) {
+          return res.status(409).json({ error: "El RUT y DVRUT ya están registrados por otro usuario." });
+        }
       }
     }
 
+    // Actualiza usando el rut del token como identificador
     await connection.execute(
       `UPDATE Usuarios 
-       SET primer_nombre = :primer_nombre, 
-         segundo_nombre = :segundo_nombre, 
-         primer_apellido = :primer_apellido, 
-         segundo_apellido = :segundo_apellido, 
-         direccion = :direccion, 
-         correo = :correo 
-       WHERE rut = :rut`,
-      [primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, rut],
+       SET rut = :rut,
+           dvrut = :dvrut,
+           primer_nombre = :primer_nombre, 
+           segundo_nombre = :segundo_nombre, 
+           primer_apellido = :primer_apellido, 
+           segundo_apellido = :segundo_apellido, 
+           direccion = :direccion
+       WHERE rut = :rutToken`,
+      [rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, rutToken],
       { autoCommit: true }
     );
 
-    res.json({ mensaje: "Perfil actualizado correctamente" });
+    res.json({ mensaje: "Perfil actualizado correctamente", rut, dvrut });
   } catch (error) {
-    console.error("Error actualizando perfil:", error);
     res.status(500).json({ error: "Error interno del servidor" });
   } finally {
     if (connection) await connection.close();
   }
 });
-
-
 
 /*PRODUCTOS */
 //Listar Prioductos
@@ -1012,7 +1072,7 @@ app.get("/productos", async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
     const result = await connection.execute(
-      `SELECT codigo_producto, nombre, descripcion, precio, id_categoria, stock, imagen FROM Producto`,
+      `SELECT codigo_producto, nombre, descripcion, precio, id_categoria, stock, imagen FROM Producto orden by codigo_producto asc`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
@@ -1462,6 +1522,69 @@ app.get("/api/suscripciones/:rut", async (req, res) => {
     if (connection) await connection.close();
   }
 });
+
+//INTEGRACION GMAIL
+app.get("/auth/google/callback",
+  passport.authenticate("google", { failureRedirect: "/login" }),
+  async (req, res) => {
+    const { googleId, nombre, correo } = req.user;
+    let connection;
+    try {
+      connection = await oracledb.getConnection(dbConfig);
+
+      // Busca usuario por correo
+      const result = await connection.execute(
+        "SELECT rut, primer_nombre, correo, id_rol FROM Usuarios WHERE correo = :correo",
+        [correo],
+        { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      );
+
+      let usuario = result.rows[0];
+      let rut, primer_nombre, id_rol;
+
+      if (!usuario) {
+        // Si no existe, crea uno (registro automático)
+        rut = Date.now().toString().slice(-8); // Rut temporal único
+        primer_nombre = nombre.split(" ")[0];
+        id_rol = 1; // Cliente por defecto
+
+        await connection.execute(
+          `INSERT INTO Usuarios (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL)
+           VALUES (:rut, :dvrut, :primer_nombre, '', '', '', '', :correo, '', :id_rol)`,
+          {
+            rut,
+            dvrut: "0",
+            primer_nombre,
+            correo,
+            id_rol
+          },
+          { autoCommit: true }
+        );
+      } else {
+        rut = usuario.RUT || usuario.rut;
+        primer_nombre = usuario.PRIMER_NOMBRE || usuario.primer_nombre;
+        id_rol = usuario.ID_ROL || usuario.id_rol;
+      }
+
+      // Genera el JWT
+      const token = jwt.sign(
+        { rut, primer_nombre, correo, id_rol },
+        process.env.JWT_SECRET || "default_secret_key",
+        { expiresIn: "7h" }
+      );
+
+      // Redirige al frontend con el token y los datos
+      res.redirect(
+        `http://localhost:5173/google-success?token=${token}&rut=${encodeURIComponent(rut)}&nombre=${encodeURIComponent(primer_nombre)}&correo=${encodeURIComponent(correo)}&id_rol=${id_rol}`
+      );
+    } catch (err) {
+      console.error("Error en Google callback:", err);
+      res.redirect("http://localhost:5173/login?error=google");
+    } finally {
+      if (connection) await connection.close();
+    }
+  }
+);
 
 /*FIN CODIGO */
 app.get("/", (req, res) => {

@@ -13,6 +13,7 @@ import Return from "./Components/Carrito/Return";
 import Seguimiento from "./Components/Pedidos/Seguimiento";
 import Reserva from "./Components/Productos/Reserva";
 import VerDetalleProducto from "./Components/Productos/VerDetalleProducto";
+import GoogleSuccess from "./Components/Login-Register/google-success";
 //Planes
 import Entrenamiento from "./Components/Planes/Entrenamiento"
 import Nutricion from "./Components/Planes/Nutricion";
@@ -50,6 +51,9 @@ const App = () => {
                 {/* 🔹 Rutas de administración */}
 
                 {/* 🔹 Rutas protegidas */}
+                <Route path="/google-success" element={<GoogleSuccess />} />
+
+                {/* 🔹 Rutas de error */}
                 {/* 🔹 Página no encontrada */}
                 <Route path="*" element={<h1>404 - Página no encontrada</h1>} />
             </Routes>

@@ -5,3 +5,4 @@ npm install nodemailer
 npm install pdfkit
 npm install twilio
 npm install multer
+npm install passport passport-google-oauth20 express-session

@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
-// eslint-disable-next-line no-unused-vars
 import axios from 'axios';
 import { useNavigate } from "react-router-dom";
-
 import Imagelogo from '../../assets/icono-logo.png';
 import './Home.css';
 
@@ -16,8 +14,11 @@ function Perfil() {
     const [segundo_nombre, setSegundoNombre] = useState("");
     const [primer_apellido, setPrimerApellido] = useState("");
     const [segundo_apellido, setSegundoApellido] = useState("");
+    const [rutOriginal, setRutOriginal] = useState("");
     const [direccion, setDireccion] = useState("");
     const [correo, setCorreo] = useState("");
+    const [rut, setRut] = useState("");
+    const [dvrut, setDvrut] = useState("");
 
     useEffect(() => {
         const fetchPerfil = async () => {
@@ -35,6 +36,11 @@ function Perfil() {
                 setSegundoApellido(usuario.segundo_apellido || usuario.SEGUNDO_APELLIDO || "");
                 setDireccion(usuario.direccion || usuario.DIRECCION || "");
                 setCorreo(usuario.correo || usuario.CORREO || "");
+                setRut(usuario.rut || usuario.RUT || "");
+                setDvrut(usuario.dvrut || usuario.DVRUT || "");
+                setRut(usuario.rut || usuario.RUT || "");
+                setRutOriginal(usuario.rut || usuario.RUT || "");
+
             } catch (error) {
                 console.error("Error al obtener perfil:", error);
             }
@@ -49,32 +55,49 @@ function Perfil() {
         navigate("/login");
     };
 
-    // Función para guardar cambios en el perfil
+    // Considera temporal si rut tiene exactamente 8 dígitos y dvrut es "0" o vacío
+    const esRutTemporal = /^\d{8}$/.test(rut) && (!dvrut || dvrut === "0");
+
+    // Solo editable si el rut es temporal (o vacío)
+    const puedeEditarRut = !rut || esRutTemporal;
+    const puedeEditarDvrut = !dvrut || esRutTemporal;
+
     const actualizarPerfil = async () => {
-        try {
-            const response = await axios.put("http://localhost:5000/perfil", {
-                primer_nombre,
-                segundo_nombre,
-                primer_apellido,
-                segundo_apellido,
-                direccion,
-                correo: user?.correo // <-- Agrega el correo aquí
-            }, {
-                headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-            });
+    try {
+        const response = await axios.put("http://localhost:5000/perfil", {
+            primer_nombre,
+            segundo_nombre,
+            primer_apellido,
+            segundo_apellido,
+            direccion,
+            correo: user?.correo,
+            rut,
+            dvrut
+        }, {
+            headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
+        });
 
-            if (response.data) {
-                const updatedUser = { ...user, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion };
-                localStorage.setItem("user", JSON.stringify(updatedUser));
-                setUser(updatedUser);
+        if (response.data) {
+            // Solo forzar logout si el usuario realmente cambió el input de RUT
+            if (rut !== rutOriginal) {
+                alert("RUT actualizado. Debes iniciar sesión nuevamente.");
+                localStorage.removeItem("token");
+                localStorage.removeItem("user");
+                setUser(null);
+                navigate("/login");
+                return;
             }
-
+            // Si no cambió el rut, solo actualiza el estado local
+            setRutOriginal(rut); // Actualiza el original
+            const updatedUser = { ...user, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, rut, dvrut };
+            localStorage.setItem("user", JSON.stringify(updatedUser));
+            setUser(updatedUser);
             alert("Perfil actualizado correctamente");
-        } catch (error) {
-            console.error("Error al actualizar perfil:", error);
-            alert("Hubo un error al actualizar el perfil.");
         }
-    };
+    } catch (error) {
+        alert(error.response?.data?.error || "Hubo un error al actualizar el perfil.");
+    }
+};
 
 
 
@@ -172,6 +195,12 @@ function Perfil() {
                                 <h2 className="mb-4 text-center fw-bold" style={{ color: "#d2691e" }}>
                                     Editar Perfil
                                 </h2>
+                                {/* Mensaje si falta rut/dvrut */}
+                                {(puedeEditarRut || puedeEditarDvrut) && (
+                                    <div className="alert alert-warning text-center">
+                                        <b>¡Atención!</b> Debes ingresar tu RUT y dígito verificador reales. Solo podrás hacerlo una vez.
+                                    </div>
+                                )}
                                 <form
                                     onSubmit={e => {
                                         e.preventDefault();
@@ -235,6 +264,30 @@ function Perfil() {
                                                 value={correo}
                                                 onChange={e => setCorreo(e.target.value)}
                                                 disabled
+                                            />
+                                        </div>
+                                        <div className="col-md-6">
+                                            <label className="form-label fw-semibold">RUT</label>
+                                            <input
+                                                type="text"
+                                                className="form-control rounded-pill"
+                                                value={rut}
+                                                onChange={e => setRut(e.target.value)}
+                                                required
+                                                disabled={!puedeEditarRut}
+                                                placeholder="Ingresa tu RUT"
+                                            />
+                                        </div>
+                                        <div className="col-md-6">
+                                            <label className="form-label fw-semibold">Dígito Verificador (DV)</label>
+                                            <input
+                                                type="text"
+                                                className="form-control rounded-pill"
+                                                value={dvrut}
+                                                onChange={e => setDvrut(e.target.value)}
+                                                required
+                                                disabled={!puedeEditarDvrut}
+                                                placeholder="Ingresa tu DV"
                                             />
                                         </div>
                                     </div>

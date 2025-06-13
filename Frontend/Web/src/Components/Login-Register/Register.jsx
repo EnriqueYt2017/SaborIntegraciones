@@ -199,6 +199,40 @@ function Register() {
                     {error && (
                         <p style={{ color: "red", marginTop: 12, textAlign: "center" }}>{error}</p>
                     )}
+                    <a
+                        href="http://localhost:5000/auth/google"
+                        style={{ textDecoration: "none" }}
+                    >
+                        <button
+                            type="button"
+                            style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                backgroundColor: "#ffffff",
+                                color: "#5f6368",
+                                border: "1px solid #dadce0",
+                                borderRadius: "4px",
+                                marginTop: "8px",
+                                padding: "12px",
+                                fontWeight: 600,
+                                fontSize: "16px",
+                                cursor: "pointer",
+                                boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                                transition: "background-color 0.3s ease",
+                            }}
+                            onMouseOver={(e) => (e.target.style.backgroundColor = "#f8f9fa")}
+                            onMouseOut={(e) => (e.target.style.backgroundColor = "#ffffff")}
+                        >
+                            <img
+                                src="https://static.vecteezy.com/system/resources/previews/022/484/516/original/google-mail-gmail-icon-logo-symbol-free-png.png"
+                                alt="Google Logo"
+                                style={{ width: "20px", height: "20px", marginRight: "10px" }}
+                            />
+                            Registrar con Google
+                        </button>
+                    </a>
+
                 </div>
                 <div
                     className="register-image-section"

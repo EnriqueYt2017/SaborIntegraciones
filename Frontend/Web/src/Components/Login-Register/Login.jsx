@@ -21,32 +21,32 @@ function Login() {
   }, []);
 
 
-const handleSubmit = async (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-        const response = await axios.post("http://localhost:5000/login", { correo, pass });
+      const response = await axios.post("http://localhost:5000/login", { correo, pass });
 
-        console.log("Respuesta del backend:", response.data); // 🔎 Verifica qué llega del backend
+      console.log("Respuesta del backend:", response.data); // 🔎 Verifica qué llega del backend
 
-        if (response.data && response.data.usuario) {
-            console.log("Usuario autenticado:", response.data.usuario); // 🔎 Verifica los datos antes de guardarlos
-            localStorage.setItem("user", JSON.stringify(response.data.usuario));
-            localStorage.setItem("rut_usuario", response.data.usuario.rut); // 🔹 Guarda el RUT del usuario logueado
+      if (response.data && response.data.usuario) {
+        console.log("Usuario autenticado:", response.data.usuario); // 🔎 Verifica los datos antes de guardarlos
+        localStorage.setItem("user", JSON.stringify(response.data.usuario));
+        localStorage.setItem("rut_usuario", response.data.usuario.rut); // 🔹 Guarda el RUT del usuario logueado
 
-            localStorage.setItem("token", response.data.token); // 🔹 Guarda el token también
-            navigate("/home");
-        } else {
-            console.error("Error: Usuario no encontrado en la respuesta.");
-        }
+        localStorage.setItem("token", response.data.token); // 🔹 Guarda el token también
+        navigate("/home");
+      } else {
+        console.error("Error: Usuario no encontrado en la respuesta.");
+      }
     } catch (err) {
-    setError(
+      setError(
         err.response?.data?.error ||
         err.response?.data?.mensaje ||
         "Error al conectar con el servidor"
-    );
-    console.error("Error en la solicitud:", err);
-}
-};
+      );
+      console.error("Error en la solicitud:", err);
+    }
+  };
   return (
     <div className="login-container" style={{
       minHeight: "100vh",
@@ -75,6 +75,7 @@ const handleSubmit = async (e) => {
             <img src={ImageProfile} alt="" style={{ width: 70, marginBottom: 16 }} />
             <h2 style={{ fontWeight: 700, color: "#f76d6d" }}>Iniciar Sesión</h2>
           </div>
+
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 18 }}>
             <input
               className="cajatexto"
@@ -149,6 +150,39 @@ const handleSubmit = async (e) => {
               No tengo cuenta. Registrarme
             </a>
           </form>
+          <a
+            href="http://localhost:5000/auth/google"
+            style={{ textDecoration: "none" }}
+          >
+            <button
+              
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                backgroundColor: "#ffffff",
+                color: "#5f6368",
+                border: "1px solid #dadce0",
+                borderRadius: "4px",
+                marginTop: "8px",
+                padding: "12px",
+                fontWeight: 600,
+                fontSize: "16px",
+                cursor: "pointer",
+                boxShadow: "0 1px 3px rgba(0, 0, 0, 0.1)",
+                transition: "background-color 0.3s ease",
+              }}
+              onMouseOver={(e) => (e.target.style.backgroundColor = "#f8f9fa")}
+              onMouseOut={(e) => (e.target.style.backgroundColor = "#ffffff")}
+            >
+              <img
+                src="https://static.vecteezy.com/system/resources/previews/022/484/516/original/google-mail-gmail-icon-logo-symbol-free-png.png"
+                alt="Google Logo"
+                style={{ width: "20px", height: "20px", marginRight: "10px" }}
+              />
+              Iniciar sesión con Google
+            </button>
+          </a>
           {error && <p style={{ color: "red", marginTop: 12 }}>{error}</p>}
         </div>
         <div className="login-image-section" style={{
