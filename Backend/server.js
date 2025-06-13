@@ -791,43 +791,23 @@ app.post("/api/foro-entrenamiento", async (req, res) => {
 });
 
 //NUTRICION
-app.get("/api/planes-nutricion", async (req, res) => {
-  let connection;
-  try {
-    connection = await oracledb.getConnection(dbConfig);
-    const result = await connection.execute(
-      `SELECT ID_PLAN_NUTRICION, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS, MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT FROM PLAN_NUTRICION`,
-      [],
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error("Error al obtener planes de nutrición:", err);
-    res.status(500).json({ error: "No se pudieron obtener los planes" });
-  } finally {
-    if (connection) await connection.close();
-  }
-});
-
 app.post("/api/planes-nutricion", async (req, res) => {
+  const {
+    NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS,
+    MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT, PRECIO
+  } = req.body;
   let connection;
   try {
-    const {
-      NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS,
-      MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT
-    } = req.body;
-
     connection = await oracledb.getConnection(dbConfig);
-
     await connection.execute(
       `INSERT INTO PLAN_NUTRICION (
         ID_PLAN_NUTRICION, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN,
-        CALORIAS_DIARIAS, MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT
+        CALORIAS_DIARIAS, MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT, PRECIO
       ) VALUES (
         SEQ_PLAN_NUTRICION.NEXTVAL, :NOMBRE, :DESCRIPCION,
         TO_DATE(:FECHAINICIO, 'YYYY-MM-DD'), TO_DATE(:FECHAFIN, 'YYYY-MM-DD'),
         :CALORIAS_DIARIAS, :MACRONUTRIENTES, :TIPODIETA,
-        :OBJETIVO, :OBSERVACIONES, :RUT
+        :OBJETIVO, :OBSERVACIONES, :RUT, :PRECIO
       )`,
       {
         NOMBRE,
@@ -839,17 +819,34 @@ app.post("/api/planes-nutricion", async (req, res) => {
         TIPODIETA,
         OBJETIVO,
         OBSERVACIONES,
-        RUT: Number(RUT)
+        RUT: Number(RUT),
+        PRECIO: Number(PRECIO)
       },
       { autoCommit: true }
     );
-
     res.status(201).json({ mensaje: "Plan de nutrición agregado correctamente" });
   } catch (err) {
     console.error("Error al agregar plan de nutrición:", err);
     res.status(500).json({ error: "No se pudo agregar el plan" });
+  } finally {
+    if (connection) await connection.close();
   }
-  finally {
+});
+
+app.get("/api/planes-nutricion", async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT ID_PLAN_NUTRICION, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS, MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT, NVL(PRECIO, 0)  AS PRECIO FROM PLAN_NUTRICION`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error al obtener planes de nutrición:", err);
+    res.status(500).json({ error: "No se pudieron obtener los planes" });
+  } finally {
     if (connection) await connection.close();
   }
 });
@@ -874,11 +871,12 @@ app.delete("/api/planes-nutricion/:id", async (req, res) => {
 });
 
 // Modificar plan de nutrición
+// ...existing code...
 app.put("/api/planes-nutricion/:id", async (req, res) => {
   const id = req.params.id;
   const {
     NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS,
-    MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT
+    MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT, PRECIO
   } = req.body;
   let connection;
   try {
@@ -894,17 +892,29 @@ app.put("/api/planes-nutricion/:id", async (req, res) => {
         TIPODIETA = :TIPODIETA,
         OBJETIVO = :OBJETIVO,
         OBSERVACIONES = :OBSERVACIONES,
-        RUT = :RUT
+        RUT = :RUT,
+        PRECIO = :PRECIO
       WHERE ID_PLAN_NUTRICION = :id`,
       {
-        NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS,
-        MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT, id
+        NOMBRE,
+        DESCRIPCION,
+        FECHAINICIO: FECHAINICIO ? FECHAINICIO.substring(0, 10) : null,
+        FECHAFIN: FECHAFIN ? FECHAFIN.substring(0, 10) : null,
+        CALORIAS_DIARIAS: Number(CALORIAS_DIARIAS),
+        MACRONUTRIENTES,
+        TIPODIETA,
+        OBJETIVO,
+        OBSERVACIONES,
+        RUT: Number(RUT),
+        PRECIO: Number(PRECIO),
+        id
       },
       { autoCommit: true }
     );
     res.json({ mensaje: "Plan de nutrición actualizado correctamente" });
   } catch (err) {
-    res.status(500).json({ error: "No se pudo actualizar el plan" });
+    console.error("Error al modificar plan de nutrición:", err);
+    res.status(500).json({ error: "No se pudo modificar el plan" });
   } finally {
     if (connection) await connection.close();
   }
