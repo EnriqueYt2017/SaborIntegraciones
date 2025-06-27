@@ -11,15 +11,19 @@ export default function GoogleSuccess() {
     const nombre = params.get("nombre");
     const correo = params.get("correo");
     const id_rol = params.get("id_rol");
+    const dvrut = params.get("dvrut"); // <-- si lo envías desde backend
 
-    console.log("GoogleSuccess params:", { token, rut, nombre, correo, id_rol });
-
-    if (token && rut && nombre && correo) {
+    // Guarda datos mínimos
+    if (token && correo && nombre) {
       localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify({ rut, primer_nombre: nombre, correo, id_rol }));
-      navigate("/home");
-    } else {
-      navigate("/login");
+      localStorage.setItem("user", JSON.stringify({ rut, primer_nombre: nombre, correo, id_rol, dvrut }));
+
+      // Redirige SOLO si rut temporal y dvrut es "0"
+      if (rut === "12345678" && (!dvrut || dvrut === "0")) {
+        navigate("/completar-datos-google");
+      } else {
+        navigate("/home");
+      }
     }
   }, [navigate]);
 
