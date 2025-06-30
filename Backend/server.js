@@ -92,7 +92,7 @@ function requireRoles(roles) {
 }
 
 app.put("/api/Usuarios", async (req, res) => {
-  const { correo, rut, dvrut, primer_nombre, primer_apellido, id_rol } = req.body;
+  const { correo, rut, dvrut, primer_nombre, primer_apellido, id_rol, telefono } = req.body;
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
@@ -102,6 +102,7 @@ app.put("/api/Usuarios", async (req, res) => {
         dvrut = :dvrut,
         primer_nombre = :primer_nombre,
         primer_apellido = :primer_apellido,
+        telefono = :telefono,
         id_rol = :id_rol
       WHERE correo = :correo AND rut = 12345678 AND dvrut = 0`,
       { rut, dvrut, primer_nombre, primer_apellido, id_rol, correo },
@@ -129,7 +130,7 @@ app.get("/api/Usuarios", async (req, res) => {
     }
 
     const result = await connection.execute(
-      `SELECT rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, id_rol FROM Usuarios`,
+      `SELECT rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, telefono, id_rol FROM Usuarios`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
@@ -148,7 +149,7 @@ app.get("/api/Usuarios", async (req, res) => {
 app.post("/api/Usuarios", async (req, res) => {
   const {
     rut, dvrut, primer_nombre, segundo_nombre,
-    primer_apellido, segundo_apellido, direccion, correo, pass, id_rol
+    primer_apellido, segundo_apellido, direccion, correo, pass, id_rol, telefono
   } = req.body;
 
   let connection;
@@ -158,9 +159,9 @@ app.post("/api/Usuarios", async (req, res) => {
 
     await connection.execute(
       `INSERT INTO Usuarios 
-        (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL) 
+        (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL, TELEFONO) 
        VALUES 
-        (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol)`,
+        (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol, :telefono)`,
       {
         rut,
         dvrut,
@@ -170,6 +171,7 @@ app.post("/api/Usuarios", async (req, res) => {
         segundo_apellido,
         direccion,
         correo,
+        telefono,
         pass: hashedPassword,
         id_rol: Number(id_rol)
       },
@@ -380,7 +382,7 @@ app.post("/register", async (req, res) => {
       `INSERT INTO Usuarios 
     (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL) 
    VALUES 
-    (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol)`,
+    (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol`,
       {
         rut,
         dvrut,
@@ -391,7 +393,7 @@ app.post("/register", async (req, res) => {
         direccion,
         correo,
         pass: hashedPassword,
-        id_rol: 1 // o el valor correcto
+        id_rol: 1,
       },
       { autoCommit: true }
     );
@@ -502,7 +504,7 @@ app.put("/perfil", async (req, res) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "default_secret_key");
     const rutToken = decoded.rut;
-    let { rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo } = req.body;
+    let { rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, telefono } = req.body;
 
     connection = await oracledb.getConnection(dbConfig);
 
@@ -545,9 +547,10 @@ app.put("/perfil", async (req, res) => {
            segundo_nombre = :segundo_nombre, 
            primer_apellido = :primer_apellido, 
            segundo_apellido = :segundo_apellido, 
-           direccion = :direccion
+           direccion = :direccion,
+            telefono = :telefono
        WHERE rut = :rutToken`,
-      [rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, rutToken],
+      [rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, telefono, rutToken],
       { autoCommit: true }
     );
     // ...después de actualizar el usuario...
@@ -1022,7 +1025,7 @@ app.get("/dashboard/Usuarios", async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
     const result = await connection.execute(
-      `SELECT rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, id_rol FROM Usuarios`,
+      `SELECT rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, telefono, id_rol FROM Usuarios`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
@@ -1048,6 +1051,7 @@ app.put('/api/Usuarios/:rut', async (req, res) => {
     segundo_apellido,
     direccion,
     correo,
+    telefono,
     id_rol
   } = req.body;
   let connection;
@@ -1063,6 +1067,7 @@ app.put('/api/Usuarios/:rut', async (req, res) => {
         SEGUNDO_APELLIDO = :segundo_apellido,
         DIRECCION = :direccion,
         CORREO = :correo,
+        TELEFONO = :telefono,
         ID_ROL = :id_rol
       WHERE RUT = :rut`,
       {
@@ -1073,6 +1078,7 @@ app.put('/api/Usuarios/:rut', async (req, res) => {
         segundo_apellido,
         direccion,
         correo,
+        telefono,
         id_rol: Number(id_rol),
         rut
       },

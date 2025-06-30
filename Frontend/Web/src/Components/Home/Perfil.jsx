@@ -18,6 +18,7 @@ function Perfil() {
     const [correo, setCorreo] = useState("");
     const [rut, setRut] = useState("");
     const [dvrut, setDvrut] = useState("");
+    const [telefono, setTelefono] = useState("");
 
     useEffect(() => {
     const token = localStorage.getItem("token");
@@ -39,6 +40,7 @@ function Perfil() {
             setSegundoApellido(usuario.segundo_apellido || usuario.SEGUNDO_APELLIDO || "");
             setDireccion(usuario.direccion || usuario.DIRECCION || "");
             setCorreo(usuario.correo || usuario.CORREO || "");
+            setTelefono(usuario.telefono || usuario.TELEFONO || "");
             setRut(usuario.rut || usuario.RUT || "");
             setDvrut(usuario.dvrut || usuario.DVRUT || "");
         } catch (error) {
@@ -63,13 +65,14 @@ function Perfil() {
                 primer_apellido,
                 segundo_apellido,
                 direccion,
+                telefono,
                 correo: user?.correo
             }, {
                 headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
             });
 
             if (response.data) {
-                const updatedUser = { ...user, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion };
+                const updatedUser = { ...user, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, telefono };
                 localStorage.setItem("user", JSON.stringify(updatedUser));
                 setUser(updatedUser);
                 alert("Perfil actualizado correctamente");
@@ -225,6 +228,16 @@ function Perfil() {
                                                 className="form-control rounded-pill"
                                                 value={direccion}
                                                 onChange={e => setDireccion(e.target.value)}
+                                                required
+                                            />
+                                        </div>
+                                        <div className="col-12">
+                                            <label className="form-label fw-semibold">Telefono</label>
+                                            <input
+                                                type="text"
+                                                className="form-control rounded-pill"
+                                                value={telefono}
+                                                onChange={e => setTelefono(e.target.value)}
                                                 required
                                             />
                                         </div>
