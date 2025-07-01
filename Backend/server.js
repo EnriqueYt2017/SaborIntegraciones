@@ -59,9 +59,6 @@ app.get("/auth/google",
   passport.authenticate("google", { scope: ["profile", "email"] })
 );
 
-
-//////////////////FIN///////////////////////////////////
-
 app.use("/uploads", express.static("uploads"));
 dotenv.config();
 app.use(express.json());
@@ -155,7 +152,7 @@ app.get("/api/Usuarios", async (req, res) => {
 app.post("/api/Usuarios", async (req, res) => {
   const {
     rut, dvrut, primer_nombre, segundo_nombre,
-    primer_apellido, segundo_apellido, direccion, correo, pass, id_rol, telefono
+    primer_apellido, segundo_apellido, direccion, correo, pass, id_rol
   } = req.body;
 
   let connection;
@@ -165,9 +162,9 @@ app.post("/api/Usuarios", async (req, res) => {
 
     await connection.execute(
       `INSERT INTO Usuarios 
-        (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL, TELEFONO) 
+        (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL) 
        VALUES 
-        (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol, :telefono)`,
+        (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol)`,
       {
         rut,
         dvrut,
@@ -177,7 +174,6 @@ app.post("/api/Usuarios", async (req, res) => {
         segundo_apellido,
         direccion,
         correo,
-        telefono,
         pass: hashedPassword,
         id_rol: Number(id_rol)
       },
@@ -914,7 +910,190 @@ app.put("/api/planes-nutricion/:id", async (req, res) => {
     if (connection) await connection.close();
   }
 });
+//INTEGRACION GMAIL
+app.get("/auth/google/callback",
+  passport.authenticate("google", { failureRedirect: "/login" }),
+  async (req, res) => {
+    const { googleId, nombre, correo } = req.user;
+    let connection;
+    try {
+      connection = await oracledb.getConnection(dbConfig);
 
+      // Busca usuario por correo
+      const result = await connection.execute(
+        "SELECT rut, primer_nombre, correo, id_rol FROM Usuarios WHERE correo = :correo",
+        [correo],
+        { outFormat: oracledb.OUT_FORMAT_OBJECT }
+      );
+
+      let usuario = result.rows[0];
+      let rut, primer_nombre, id_rol;
+
+      if (!usuario) {
+        // Si no existe, crea uno SIN rut ni dvrut
+        primer_nombre = nombre.split(" ")[0];
+        id_rol = 1; // Cliente por defecto
+
+        const rutTemporal = 12345678; // Un número único temporal
+
+        await connection.execute(
+          `INSERT INTO Usuarios 
+    (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL)
+   VALUES 
+    (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol)`,
+          {
+            rut: 12345678,
+            dvrut: 0,
+            primer_nombre: primer_nombre,
+            segundo_nombre: null,         // Usa null, no ""
+            primer_apellido: null,
+            segundo_apellido: null,
+            direccion: null,
+            correo: correo,
+            pass: "",                     // Si PASS es NOT NULL, usa un string seguro
+            id_rol: 1
+          },
+          { autoCommit: true }
+        );
+        rut = rutTemporal; // Para que el frontend detecte que falta completar
+      } else {
+        rut = usuario.RUT || usuario.rut || "";
+        primer_nombre = usuario.PRIMER_NOMBRE || usuario.primer_nombre;
+        id_rol = usuario.ID_ROL || usuario.id_rol;
+      }
+
+      // Genera el JWT
+      const token = jwt.sign(
+        { rut, primer_nombre, correo, id_rol },
+        process.env.JWT_SECRET || "default_secret_key",
+        { expiresIn: "7h" }
+      );
+
+      // Redirige al frontend con el token y los datos
+      res.redirect(
+        `http://localhost:5173/google-success?token=${token}&rut=${encodeURIComponent(rut)}&nombre=${encodeURIComponent(primer_nombre)}&correo=${encodeURIComponent(correo)}&id_rol=${id_rol}`
+      );
+    } catch (err) {
+      console.error("Error en Google callback:", err);
+      res.redirect("http://localhost:5173/login?error=google");
+    } finally {
+      if (connection) await connection.close();
+    }
+  }
+);
+//CONTACTENOS
+app.post("/contactenos", async (req, res) => {
+  const { nombre, correo, mensaje } = req.body;
+  const numeroSolicitud = Date.now(); // Usamos timestamp como número único
+
+  // 1. Guardar en la base de datos
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      `INSERT INTO Contactenos (numerosolicitud, nombre, correo, mensaje)
+             VALUES (:numerosolicitud, :nombre, :correo, :mensaje)`,
+      [numeroSolicitud, nombre, correo, mensaje],
+      { autoCommit: true }
+    );
+  } catch (err) {
+    console.error("Error al guardar en Contactenos:", err);
+    return res.status(500).json({ error: "No se pudo guardar la consulta" });
+  } finally {
+    if (connection) await connection.close();
+  }
+
+  // 2. Configura tu transportador
+  let transporter = nodemailer.createTransport({
+    service: "gmail",
+    auth: {
+      user: "esancchezp2005@gmail.com",
+      pass: "FAQF CZRX TKOB QCNL"
+    }
+  });
+
+  // 3. Correos
+  const adminMail = {
+    from: '"Contacto Web" <TU_CORREO@gmail.com>',
+    to: "esancchezp2005@gmail.com",
+    subject: `Nueva consulta #${numeroSolicitud}`,
+    html: `
+            <h2>Nueva consulta recibida</h2>
+            <b>Número de solicitud:</b> ${numeroSolicitud}<br>
+            <b>Nombre:</b> ${nombre}<br>
+            <b>Email:</b> ${correo}<br>
+            <b>Mensaje:</b><br>
+            <pre>${mensaje}</pre>
+            <br>
+            <a href="mailto:${correo}?subject=Respuesta a tu consulta #${numeroSolicitud}">Responder a este usuario</a>
+        `
+  };
+
+  const userMail = {
+    from: '"Sabor Integraciones" <esancchezp2005@gmail.com>',
+    to: correo,
+    subject: `Hemos recibido tu consulta (#${numeroSolicitud})`,
+    html: `
+            <h2>¡Gracias por contactarnos!</h2>
+            <p>Hemos recibido tu mensaje y te responderemos pronto.</p>
+            <b>Número de solicitud:</b> ${numeroSolicitud}<br>
+            <b>Tu mensaje:</b><br>
+            <pre>${mensaje}</pre>
+            <br>
+            <p>Si tienes más dudas, responde a este correo.</p>
+        `
+  };
+
+  try {
+    await transporter.sendMail(adminMail);
+    await transporter.sendMail(userMail);
+    res.json({ ok: true, numeroSolicitud });
+  } catch (err) {
+    console.error("Error enviando correos:", err);
+    res.status(500).json({ error: "No se pudo enviar el mensaje" });
+  }
+});
+
+//SUSCRIPCIONES
+app.get("/api/suscripciones", async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT ID_PLAN, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, OBJETIVO, RUT, TIPO_PLAN FROM SUSCRIPCIONES`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error al obtener suscripciones:", err);
+    res.status(500).json({ error: "No se pudieron obtener las suscripciones" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.post("/api/suscripciones", async (req, res) => {
+  const { ID_PLAN, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, OBJETIVO, RUT, TIPO_PLAN } = req.body;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      `INSERT INTO SUSCRIPCIONES 
+        (ID_SUSCRIPCION, ID_PLAN, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, OBJETIVO, RUT, TIPO_PLAN)
+       VALUES 
+        (SEQ_SUSCRIPCIONES.NEXTVAL, :ID_PLAN, :NOMBRE, :DESCRIPCION, TO_DATE(:FECHAINICIO, 'YYYY-MM-DD'), TO_DATE(:FECHAFIN, 'YYYY-MM-DD'), :OBJETIVO, :RUT, :TIPO_PLAN)`,
+      { ID_PLAN, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, OBJETIVO, RUT, TIPO_PLAN },
+      { autoCommit: true }
+    );
+    res.status(201).json({ message: "Suscripción creada correctamente" });
+  } catch (err) {
+    console.error("Error al guardar suscripción:", err);
+    res.status(500).json({ error: err.message });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
 
 //COMENTARIOS
 app.get("/api/comentarios", async (req, res) => {
@@ -1042,6 +1221,225 @@ app.delete("/api/comentarios/:id", async (req, res) => {
   } finally {
     if (connection) await connection.close();
   }
+});
+// Agregar después de los otros endpoints
+
+//RESERVAS
+app.post("/api/reservas", async (req, res) => {
+  const { fecha_reserva, usuario, productos, numero_reserva } = req.body;
+  let connection;
+
+  try {
+    // Validate required data
+    if (!usuario || !usuario.rut || !productos || !Array.isArray(productos)) {
+      return res.status(400).json({
+        error: "Datos incompletos",
+        recibido: { usuario, productos }
+      });
+    }
+
+    connection = await oracledb.getConnection(dbConfig);
+
+    // Insert each reserved product
+    for (const p of productos) {
+      await connection.execute(
+        `INSERT INTO reserva_producto (
+          id_reserva,
+          fecha_reserva,
+          cantidad,
+          rut,
+          dvrut,
+          codigo_producto
+        ) VALUES (
+          SEQ_RESERVA.NEXTVAL,
+          TO_DATE(:fecha_reserva, 'YYYY-MM-DD'),
+          :cantidad,
+          :rut,
+          :dvrut,
+          :codigo_producto
+        )`,
+        {
+          fecha_reserva,
+          cantidad: p.cantidad,
+          rut: usuario.rut,
+          dvrut: usuario.dvrut || '0',
+          codigo_producto: p.codigo_producto
+        },
+        { autoCommit: false }
+      );
+    }
+
+    await connection.commit();
+    res.status(201).json({
+      mensaje: "Reserva creada correctamente",
+      numero_reserva
+    });
+
+  } catch (err) {
+    console.error("Error al guardar reserva:", err);
+    if (connection) {
+      try {
+        await connection.rollback();
+      } catch (rollbackErr) {
+        console.error("Error en rollback:", rollbackErr);
+      }
+    }
+    res.status(500).json({ error: "No se pudo guardar la reserva" });
+  } finally {
+    if (connection) {
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error("Error al cerrar la conexión:", err);
+      }
+    }
+  }
+});
+
+app.post("/enviar-voucher-reserva", async (req, res) => {
+  const { numeroReserva, usuario, sucursal, productos, total, fechaReserva, fechaLimite } = req.body;
+
+  // 1. Generar el PDF en memoria
+  const doc = new PDFDocument({ margin: 40, size: "A4" });
+  let buffers = [];
+  doc.on("data", buffers.push.bind(buffers));
+  doc.on("end", async () => {
+    const pdfData = Buffer.concat(buffers);
+
+    // 2. Configura tu transportador de correo
+    let transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: "esancchezp2005@gmail.com",
+        pass: "FAQF CZRX TKOB QCNL"
+      }
+    });
+
+    // 3. Enviar el correo con el PDF adjunto
+    try {
+      await transporter.sendMail({
+        from: '"SportFit" <esancchezp2005@gmail.com>',
+        to: usuario.email,
+        subject: "Voucher de Reserva",
+        html: `<p>Adjuntamos tu voucher de reserva en PDF.<br>¡Gracias por reservar con nosotros!</p>`,
+        attachments: [
+          {
+            filename: `${numeroReserva}.pdf`,
+            content: pdfData,
+            contentType: "application/pdf"
+          }
+        ]
+      });
+      res.json({ ok: true });
+    } catch (err) {
+      console.error("Error enviando correo:", err);
+      res.status(500).json({ error: "No se pudo enviar el correo" });
+    }
+  });
+
+
+
+  const headerHeight = 100;
+  for (let i = 0; i < headerHeight; i++) {
+    // Interpolar color entre #43e97b (verde) y #38f9d7 (azul claro)
+    const r1 = 67, g1 = 233, b1 = 123;
+    const r2 = 56, g2 = 249, b2 = 215;
+    const t = i / headerHeight;
+    const r = Math.round(r1 + (r2 - r1) * t);
+    const g = Math.round(g1 + (g2 - g1) * t);
+    const b = Math.round(b1 + (b2 - b1) * t);
+    doc.rect(0, i, doc.page.width, 1).fill(`rgb(${r},${g},${b})`);
+  }
+  // Logo y título
+  doc.image(logo, doc.page.width - 120, 20, { width: 80, height: 60, align: "right" });
+  doc.fontSize(28).fillColor("#fff").font("Helvetica-Bold").text("Voucher de Reserva", 40, 35, { align: "left", width: doc.page.width - 180 });
+
+  // Sombra para el contenido principal
+  doc.rect(30, headerHeight + 15, doc.page.width - 60, doc.page.height - headerHeight - 80)
+    .fillOpacity(0.07).fillAndStroke("#222", "#222");
+  doc.fillOpacity(1);
+
+  // Datos de la reserva (en dos columnas)
+  let y = headerHeight + 35;
+  const leftX = 50, rightX = doc.page.width / 2 + 10;
+  doc.fontSize(14).fillColor("#222").font("Helvetica-Bold");
+  doc.text(`N° Reserva:`, leftX, y, { continued: true }).font("Helvetica").text(numeroReserva);
+  doc.font("Helvetica-Bold").text(`Nombre:`, leftX, doc.y + 5, { continued: true }).font("Helvetica").text(`${usuario.primer_nombre} ${usuario.primer_apellido}`);
+  doc.font("Helvetica-Bold").text(`RUT:`, leftX, doc.y + 5, { continued: true }).font("Helvetica").text(usuario.rut);
+  doc.font("Helvetica-Bold").text(`Email:`, leftX, doc.y + 5, { continued: true }).font("Helvetica").text(usuario.email);
+
+  // Columna derecha
+  let yRight = y;
+  doc.font("Helvetica-Bold").text(`Sucursal:`, rightX, yRight, { continued: true }).font("Helvetica").text(sucursal.nombre);
+  yRight = doc.y + 5;
+  doc.font("Helvetica-Bold").text(`Fecha Reserva:`, rightX, yRight, { continued: true }).font("Helvetica").text(fechaReserva);
+  yRight = doc.y + 5;
+  doc.font("Helvetica-Bold").text(`Fecha Límite:`, rightX, yRight, { continued: true }).font("Helvetica").text(fechaLimite);
+
+  // Línea divisoria
+  y = Math.max(doc.y, doc.page.height / 4);
+  doc.moveTo(50, y + 10).lineTo(doc.page.width - 50, y + 10).strokeColor("#43e97b").lineWidth(2).stroke();
+  y += 25;
+
+  // Tabla de productos
+  doc.fontSize(16).fillColor("#43e97b").font("Helvetica-Bold").text("Productos Reservados:", 50, y, { underline: true });
+  y = doc.y + 8;
+
+  // Encabezado de tabla
+  const colX = [60, 260, 340, 420, 510];
+  const colW = [200, 80, 80, 90];
+  doc.fontSize(13).fillColor("#222").font("Helvetica-Bold");
+  doc.text("Producto", colX[0], y, { width: colW[0] });
+  doc.text("Cantidad", colX[1], y, { width: colW[1], align: "center" });
+  doc.text("Precio", colX[2], y, { width: colW[2], align: "center" });
+  doc.text("Subtotal", colX[3], y, { width: colW[3], align: "right" });
+  y += 18;
+  doc.moveTo(50, y).lineTo(doc.page.width - 50, y).strokeColor("#e0e0e0").lineWidth(1).stroke();
+  y += 8;
+
+  // Filas de productos (máximo 8 por página)
+  doc.font("Helvetica").fillColor("#222").fontSize(12);
+  productos.forEach((p, idx) => {
+    if (y > doc.page.height - 150) {
+      doc.addPage();
+      y = 50;
+    }
+    doc.text(p.nombre, colX[0], y, { width: colW[0], ellipsis: true });
+    doc.text(p.cantidad.toString(), colX[1], y, { width: colW[1], align: "center" });
+    doc.text(`$${p.precio.toLocaleString()}`, colX[2], y, { width: colW[2], align: "center" });
+    doc.text(`$${(p.precio * p.cantidad).toLocaleString()}`, colX[3], y, { width: colW[3], align: "right" });
+    y += 22;
+  });
+
+  // Total destacado
+  doc.moveTo(50, y + 5).lineTo(doc.page.width - 50, y + 5).strokeColor("#43e97b").lineWidth(1.5).stroke();
+  doc.font("Helvetica-Bold").fontSize(15).fillColor("#43e97b").text(`Total: $${total.toLocaleString()}`, 360, y + 15, { width: 180, align: "right" });
+  y += 45;
+
+  // Fechas de retiro
+  doc.fontSize(13).fillColor("#222").font("Helvetica-Bold").text("Retiro de productos:", 50, y, { underline: true });
+  y = doc.y + 5;
+  doc.font("Helvetica").fontSize(12).fillColor("#222").text(
+    `Puedes retirar tus productos entre el ${fechaReserva} y el ${fechaLimite} (10 días hábiles desde la reserva).`,
+    60, y, { width: doc.page.width - 120 }
+  );
+  y = doc.y + 5;
+  doc.text("Horario de atención: 10:00 AM a 7:00 PM.", 60, y, { width: doc.page.width - 120 });
+  y = doc.y + 15;
+
+  // Aviso importante
+  doc.rect(50, y, doc.page.width - 100, 60).fillOpacity(0.12).fillAndStroke("#e53935", "#e53935");
+  doc.fillOpacity(1).fontSize(12).fillColor("#e53935").font("Helvetica-Bold").text("¡Importante!", 60, y + 5);
+  doc.font("Helvetica").fillColor("#222").fontSize(11).text(
+    "El sistema de reservas funciona de la siguiente manera: No tiene costo adicional la reserva de un producto, pero tendrás un plazo de 10 días hábiles para ir a retirar el producto. Desde las 10AM hasta las 7PM. Si no retiras el producto en ese plazo, se liberará el stock y podrás volver a reservarlo.",
+    60, doc.y + 5, { width: doc.page.width - 120 }
+  );
+
+  // Footer
+  doc.fontSize(13).fillColor("#43e97b").font("Helvetica-Bold").text("¡Gracias por reservar con nosotros!", 0, doc.page.height - 70, { align: "center" });
+  doc.fontSize(10).fillColor("#888").font("Helvetica").text("SportFit - Todos los derechos reservados", 0, doc.page.height - 50, { align: "center" });
+
+  doc.end();
 });
 
 //ENDPOINT PARA ESTADÍSTICAS DEL ADMINISTRADOR

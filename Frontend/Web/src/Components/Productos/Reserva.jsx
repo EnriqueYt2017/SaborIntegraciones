@@ -198,32 +198,62 @@ const Reserva = () => {
     const [menuVisible, setMenuVisible] = useState(false);
     const navigate = useNavigate();
 
-    useEffect(() => {
-        // Obtener usuario de localStorage y setear usuario para el formulario
-        const userData = localStorage.getItem("user");
-        if (userData && userData !== "undefined" && userData !== "{}" && userData !== "null") {
-            try {
-                const parsedUser = JSON.parse(userData);
-                if (parsedUser && Object.keys(parsedUser).length > 0) {
-                    setUser(parsedUser);
-                    // Si tiene rut, obtener datos actualizados del backend
-                    if (parsedUser.rut) {
-                        axios
-                            .get(`http://localhost:5000/usuarios/${parsedUser.rut}`)
-                            .then((res) => setUsuario(res.data))
-                            .catch(() => setUsuario(parsedUser));
-                    }
-                } else {
-                    navigate("/login");
-                }
-            } catch (error) {
-                console.error("Error al parsear usuario:", error);
+useEffect(() => {
+    const userData = localStorage.getItem("user");
+    if (userData && userData !== "undefined" && userData !== "{}" && userData !== "null") {
+        try {
+            const parsedUser = JSON.parse(userData);
+            setUser(parsedUser);
+
+            if (parsedUser && parsedUser.rut) {
+                axios.get(`http://localhost:5000/usuarios/${parsedUser.rut}`)
+                    .then((res) => {
+                        // Log the response to see what we're getting
+                        console.log("Backend response:", res.data);
+
+                        // Create user data object with fallbacks
+                        const userData = {
+                            rut: res.data.RUT || res.data.rut || parsedUser.rut,
+                            dvrut: res.data.DVRUT || res.data.dvrut || parsedUser.dvrut || '0',
+                            primer_nombre: res.data.PRIMER_NOMBRE || res.data.primer_nombre || parsedUser.primer_nombre || '',
+                            primer_apellido: res.data.PRIMER_APELLIDO || res.data.primer_apellido || parsedUser.primer_apellido || '',
+                            email: res.data.EMAIL || res.data.email || parsedUser.email || ''
+                        };
+
+                        // Log the processed data
+                        console.log("Processed user data:", userData);
+
+                        // Update state with the processed data
+                        setUsuario(userData);
+                        if (userData.email) {
+                            setEmail(userData.email);
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error fetching user data:", error);
+                        // Fallback to localStorage data
+                        setUsuario({
+                            rut: parsedUser.rut || '',
+                            dvrut: parsedUser.dvrut || '0',
+                            primer_nombre: parsedUser.primer_nombre || '',
+                            primer_apellido: parsedUser.primer_apellido || '',
+                            email: parsedUser.email || ''
+                        });
+                    });
+            } else {
+                console.warn("No RUT found in user data:", parsedUser);
                 navigate("/login");
             }
-        } else {
+        } catch (error) {
+            console.error("Error parsing user data:", error);
             navigate("/login");
         }
-    }, []);
+    } else {
+        navigate("/login");
+    }
+}, [navigate]);
+
+
     const cerrarSesion = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
@@ -237,15 +267,18 @@ const Reserva = () => {
         setProductos(carrito);
     }, []);
 
-    const total = calcularTotal(productos);
-
-    const handleReservar = async (e) => {
+ const handleReservar = async (e) => {
     e.preventDefault();
     const token = localStorage.getItem('token');
 
     if (!token) {
         alert('Debes iniciar sesión para realizar una reserva');
         navigate('/login');
+        return;
+    }
+
+    if (!usuario || !usuario.rut) {
+        alert('Datos de usuario incompletos');
         return;
     }
 
@@ -256,14 +289,24 @@ const Reserva = () => {
     // Preparar datos para la reserva
     const reservaData = {
         fecha_reserva: fechaReserva,
-        cantidad: productos.reduce((total, p) => total + p.cantidad, 0),
-        codigo_producto: productos[0].codigo_producto,
-        email: email,
-        productos: productos,
+        usuario: {
+            rut: usuario.rut,
+            dvrut: usuario.dvrut || '0',
+            primer_nombre: usuario.primer_nombre,
+            primer_apellido: usuario.primer_apellido,
+            email: email
+        },
+        productos: productos.map(p => ({
+            codigo_producto: p.codigo_producto,
+            cantidad: p.cantidad,
+            precio: p.precio
+        })),
         numero_reserva: numeroReserva
     };
 
     try {
+        console.log('Enviando datos de reserva:', reservaData); // Debug log
+
         const responseReserva = await axios.post(
             "http://localhost:5000/api/reservas",
             reservaData,
@@ -276,7 +319,7 @@ const Reserva = () => {
         );
 
         if (responseReserva.status === 201) {
-            // Crear el objeto voucher para mostrar en pantalla
+           // Crear el objeto voucher para mostrar en pantalla
             const fechaLimite = sumarDiasHabiles(new Date(), 10);
             setVoucher({
                 numeroReserva,
@@ -298,6 +341,7 @@ const Reserva = () => {
             setProductos([]);
         }
     } catch (error) {
+        console.error("Error en reserva:", error);
         if (error.response?.status === 401) {
             alert('Tu sesión ha expirado. Por favor, vuelve a iniciar sesión');
             navigate('/login');
@@ -305,10 +349,12 @@ const Reserva = () => {
             alert(error.response.data.error || "Error en los datos de la reserva");
         } else {
             alert("No se pudo enviar la reserva. Intenta nuevamente.");
-            console.error(error);
         }
     }
 };
+
+    const total = calcularTotal(productos);
+
 
     const handleEliminarProducto = (id) => {
         const nuevosProductos = productos.filter((p) => p.id !== id);
