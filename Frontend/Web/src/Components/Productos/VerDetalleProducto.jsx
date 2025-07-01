@@ -3,11 +3,11 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import Imagelogo from "../../assets/icono-logo.png";
-import { FaShoppingCart, FaHome, FaStar, FaUserCircle } from "react-icons/fa";
+import { FaShoppingCart, FaHome, FaStar, FaUserCircle, FaReply, FaTrash, FaHeart, FaShare } from "react-icons/fa";
 import axios from "axios";
 
-const MAX_RELACIONADOS = 3;
-const COMENTARIOS_POR_PAGINA = 3;
+const MAX_RELACIONADOS = 4;
+const COMENTARIOS_POR_PAGINA = 5;
 
 const VerDetalleProducto = () => {
     const { id } = useParams();
@@ -20,35 +20,37 @@ const VerDetalleProducto = () => {
     const [relacionados, setRelacionados] = useState([]);
     const [paginaComentarios, setPaginaComentarios] = useState(1);
     const [user, setUser] = useState(null);
+    const [respondiendo, setRespondiendo] = useState(null);
+    const [textoRespuesta, setTextoRespuesta] = useState("");
+    const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
         const userData = localStorage.getItem("user");
-
         if (userData && userData !== "undefined" && userData !== "{}" && userData !== "null") {
             try {
                 const parsedUser = JSON.parse(userData);
                 if (parsedUser && Object.keys(parsedUser).length > 0) {
                     setUser(parsedUser);
                 } else {
-                    navigate("/login"); // Redirige si el usuario es inválido
+                    navigate("/login");
                 }
             } catch (error) {
                 console.error("Error al parsear usuario:", error);
-                navigate("/login"); // Redirige si hay error de parseo
+                navigate("/login");
             }
         }
-
     }, [navigate]);
 
     const cerrarSesion = () => {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
-        setUser(null); // ✅ Limpia el estado
-        navigate("/login"); // ✅ Redirige al login
+        setUser(null);
+        navigate("/login");
     };
 
     useEffect(() => {
+        setLoading(true);
         fetch(`http://localhost:5000/api/productos`)
             .then(res => res.json())
             .then(data => {
@@ -57,15 +59,53 @@ const VerDetalleProducto = () => {
                 const otros = data.filter(p => String(p.codigo_producto) !== String(id) && p.stock > 0);
                 const mezclados = otros.sort(() => 0.5 - Math.random()).slice(0, MAX_RELACIONADOS);
                 setRelacionados(mezclados);
-            });
+                setLoading(false);
+            })
+            .catch(() => setLoading(false));
     }, [id]);
 
     useEffect(() => {
-        axios.get(`http://localhost:5000/api/comentarios/${id}`)
-            .then(res => setComentarios(res.data))
-            .catch(() => setComentarios([]));
-        setPaginaComentarios(1); // Reset page when product changes
+        if (id) {
+            cargarComentarios();
+        }
     }, [id]);
+
+    const cargarComentarios = async () => {
+        try {
+            const res = await axios.get(`http://localhost:5000/api/comentarios/${id}`);
+            setComentarios(res.data);
+        } catch (error) {
+            console.error("Error cargando comentarios:", error);
+            console.error("Error response:", error.response?.data);
+            setComentarios([]);
+        }
+        setPaginaComentarios(1);
+    };
+
+    if (loading) {
+        return (
+            <div style={{
+                minHeight: "100vh",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+            }}>
+                <div style={{
+                    background: "#fff",
+                    padding: "3rem 4rem",
+                    borderRadius: 20,
+                    boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
+                    fontSize: 24,
+                    color: "#333",
+                    textAlign: "center"
+                }}>
+                    <div className="spinner-border text-primary mb-3" role="status"></div>
+                    <div>Cargando producto...</div>
+                </div>
+            </div>
+        );
+    }
 
     if (!producto) {
         return (
@@ -74,17 +114,18 @@ const VerDetalleProducto = () => {
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
-                background: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)"
+                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
             }}>
                 <div style={{
                     background: "#fff",
-                    padding: 40,
+                    padding: "3rem 4rem",
                     borderRadius: 20,
-                    boxShadow: "0 8px 32px #0002",
-                    fontSize: 22,
-                    color: "#222"
+                    boxShadow: "0 20px 40px rgba(0,0,0,0.1)",
+                    fontSize: 24,
+                    color: "#e74c3c",
+                    textAlign: "center"
                 }}>
-                    Cargando producto...
+                    Producto no encontrado
                 </div>
             </div>
         );
@@ -127,7 +168,11 @@ const VerDetalleProducto = () => {
     };
 
     const enviarComentario = async () => {
-        if (!nuevoComentario.trim()) return;
+        if (!nuevoComentario.trim()) {
+            alert("Por favor escribe un comentario.");
+            return;
+        }
+        
         try {
             await axios.post('http://localhost:5000/api/comentarios', {
                 codigo_producto: producto.codigo_producto,
@@ -137,12 +182,42 @@ const VerDetalleProducto = () => {
             setNuevoComentario("");
             setValoracion(5);
             setComentarioEnviado(true);
-            const res = await axios.get(`http://localhost:5000/api/comentarios/${producto.codigo_producto}`);
-            setComentarios(res.data);
-            setPaginaComentarios(1); // Volver a la primera página tras comentar
-            setTimeout(() => setComentarioEnviado(false), 2000);
+            await cargarComentarios();
+            setTimeout(() => setComentarioEnviado(false), 3000);
         } catch (err) {
-            alert("No se pudo enviar el comentario.");
+            console.error("Error enviando comentario:", err);
+            console.error("Error response:", err.response?.data);
+            alert("No se pudo enviar el comentario. Revisa la consola para más detalles.");
+        }
+    };
+
+    const enviarRespuesta = async (comentarioPadre) => {
+        if (!textoRespuesta.trim()) return;
+        try {
+            await axios.post('http://localhost:5000/api/comentarios', {
+                codigo_producto: producto.codigo_producto,
+                valoracion: 5,
+                texto: textoRespuesta,
+                rut: user?.rut,
+                comentario_padre: comentarioPadre
+            });
+            setTextoRespuesta("");
+            setRespondiendo(null);
+            await cargarComentarios();
+        } catch (err) {
+            alert("No se pudo enviar la respuesta.");
+        }
+    };
+
+    const eliminarComentario = async (idComentario) => {
+        if (!window.confirm("¿Estás seguro de que quieres eliminar este comentario?")) return;
+        try {
+            await axios.delete(`http://localhost:5000/api/comentarios/${idComentario}`, {
+                data: { rut: user?.rut }
+            });
+            await cargarComentarios();
+        } catch (err) {
+            alert("No se pudo eliminar el comentario.");
         }
     };
 
@@ -154,36 +229,42 @@ const VerDetalleProducto = () => {
         </span>
     );
 
-    // Nuevo diseño de comentarios
-    const ComentarioCard = ({ comentario }) => (
+    const ComentarioCard = ({ comentario, esRespuesta = false }) => (
         <div style={{
-            background: "#f8fafc",
+            background: "#fff",
             borderRadius: 16,
-            boxShadow: "0 2px 12px #e0e0e0",
+            boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
             padding: "1.5rem 2rem",
-            marginBottom: 24,
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 18,
-            position: "relative",
-            borderLeft: "6px solid #43e97b"
+            marginBottom: 20,
+            border: "1px solid #f1f3f4",
+            position: "relative"
         }}>
-            <div style={{ flexShrink: 0 }}>
-                <FaUserCircle size={44} color="#43e97b" />
-            </div>
-            <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-                    {renderStars(comentario.valoracion, 20)}
-                    <span style={{ color: "#888", fontSize: 13, marginLeft: 8 }}>Anónimo</span>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: 15 }}>
+                <div style={{ flexShrink: 0 }}>
+                    <FaUserCircle size={45} color="#667eea" />
                 </div>
-                <div style={{
-                    fontStyle: "italic",
-                    color: "#222",
-                    fontSize: "1.13rem",
-                    lineHeight: 1.6,
-                    marginBottom: 2
-                }}>
-                    "{comentario.texto}"
+                <div style={{ flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                            <span style={{ fontWeight: 700, color: "#333", fontSize: 16 }}>
+                                {comentario.nombre_usuario}
+                            </span>
+                            {renderStars(comentario.valoracion, 18)}
+                        </div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{ color: "#888", fontSize: 12 }}>
+                                {new Date(comentario.fecha_comentario).toLocaleDateString()}
+                            </span>
+                        </div>
+                    </div>
+                    <div style={{
+                        color: "#444",
+                        fontSize: 15,
+                        lineHeight: 1.6,
+                        marginBottom: 10
+                    }}>
+                        {comentario.texto}
+                    </div>
                 </div>
             </div>
         </div>
@@ -196,23 +277,19 @@ const VerDetalleProducto = () => {
         paginaComentarios * COMENTARIOS_POR_PAGINA
     );
 
-    const handlePaginaAnterior = () => {
-        setPaginaComentarios(prev => Math.max(1, prev - 1));
-    };
-
-    const handlePaginaSiguiente = () => {
-        setPaginaComentarios(prev => Math.min(totalPaginas, prev + 1));
-    };
-
     return (
         <div style={{
             minHeight: "100vh",
-            background: "linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)",
-            fontFamily: "Segoe UI, sans-serif"
+            background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif"
         }}>
-            {/*Navbar */}
+            {/* Navbar mejorada */}
             <div className="containers">
-                <nav id="navbar-e" className="navbar bg-body-tertiary px-3">
+                <nav id="navbar-e" className="navbar bg-body-tertiary px-3" style={{
+                    background: "rgba(255,255,255,0.95) !important",
+                    backdropFilter: "blur(10px)",
+                    boxShadow: "0 4px 20px rgba(0,0,0,0.1)"
+                }}>
                     <a href="#" className="navbar-brand">
                         <img src={Imagelogo} alt="Logo" className="estilo-logo" />
                     </a>
@@ -222,7 +299,7 @@ const VerDetalleProducto = () => {
                                 <button
                                     className="nav-link btn dropdown-toggle"
                                     data-bs-toggle="dropdown"
-                                    style={{ color: "#fff" }}
+                                    style={{ color: "#667eea", fontWeight: 600 }}
                                     onClick={() => setMenuVisible(!menuVisible)}
                                 >
                                     {(user.primer_nombre || "Usuario").toUpperCase()}
@@ -259,7 +336,7 @@ const VerDetalleProducto = () => {
                                 <li className="nav-item">
                                     <button
                                         className="nav-link btn"
-                                        style={{ color: "#fff" }}
+                                        style={{ color: "#667eea", fontWeight: 600 }}
                                         onClick={() => navigate("/login")}
                                     >
                                         Iniciar sesión
@@ -268,7 +345,7 @@ const VerDetalleProducto = () => {
                                 <li className="nav-item">
                                     <button
                                         className="nav-link btn"
-                                        style={{ color: "#fff" }}
+                                        style={{ color: "#667eea", fontWeight: 600 }}
                                         onClick={() => navigate("/register")}
                                     >
                                         Registrarse
@@ -277,395 +354,411 @@ const VerDetalleProducto = () => {
                             </>
                         )}
                         <li className="nav-item">
-                            <a href="/carrito" className="nav-link">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-cart" viewBox="0 0 16 16">
-                                    <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .491.592l-1.5 8A.5.5 0 0 1 13 12H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l1.313 7h8.17l1.313-7zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2" />
-                                </svg>
+                            <a href="/carrito" className="nav-link" style={{ color: "#667eea" }}>
+                                <FaShoppingCart size={18} />
                             </a>
                         </li>
-                        <li className="nav-item"><a href="/#" className="nav-link">Inicio</a></li>
-                        <li className="nav-item"><a href="/productos" className="nav-link">Productos</a></li>
-                        <li className="nav-item"><a href="/servicios" className="nav-link">Servicios</a></li>
-                        <li className="nav-item"><a href="/reserva" className="nav-link">Reservas</a></li>
-                        <li className="nav-item"><a href="/contactenos" className="nav-link">Contáctenos</a></li>
+                        <li className="nav-item"><a href="/#" className="nav-link" style={{ color: "#667eea" }}>Inicio</a></li>
+                        <li className="nav-item"><a href="/productos" className="nav-link" style={{ color: "#667eea" }}>Productos</a></li>
+                        <li className="nav-item"><a href="/servicios" className="nav-link" style={{ color: "#667eea" }}>Servicios</a></li>
+                        <li className="nav-item"><a href="/reserva" className="nav-link" style={{ color: "#667eea" }}>Reservas</a></li>
+                        <li className="nav-item"><a href="/contactenos" className="nav-link" style={{ color: "#667eea" }}>Contáctenos</a></li>
                     </ul>
                 </nav>
             </div>
+
+            {/* Contenido principal */}
             <div style={{
-                maxWidth: 1100,
-                margin: "48px auto",
+                maxWidth: 1200,
+                margin: "2rem auto",
                 background: "rgba(255,255,255,0.98)",
-                borderRadius: 32,
-                boxShadow: "0 8px 32px #0002",
-                padding: 48,
-                display: "flex",
-                gap: 48,
-                alignItems: "flex-start"
+                borderRadius: 24,
+                boxShadow: "0 20px 60px rgba(0,0,0,0.1)",
+                overflow: "hidden"
             }}>
-                {/* Columna izquierda: Imagen y relacionados */}
+                {/* Hero section del producto */}
                 <div style={{
-                    flex: "0 0 350px",
+                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                    color: "#fff",
+                    padding: "3rem 4rem",
                     display: "flex",
-                    flexDirection: "column",
+                    gap: "3rem",
                     alignItems: "center"
                 }}>
-                    <img
-                        src={producto.imagen || "https://img.icons8.com/fluency/96/fast-moving-consumer-goods.png"}
-                        alt={producto.nombre}
-                        style={{
-                            width: 320,
-                            height: 320,
-                            objectFit: "cover",
-                            borderRadius: 24,
-                            background: "#f5f5f5",
-                            boxShadow: "0 4px 24px #43e97b33"
-                        }}
-                    />
-                    {/* Productos relacionados */}
-                    <div style={{
-                        marginTop: 36,
-                        width: "100%",
-                        background: "#fffbe7",
-                        borderRadius: 16,
-                        boxShadow: "0 2px 8px #facc1511",
-                        padding: 20
-                    }}>
-                        <h3 style={{
-                            color: "#facc15",
-                            fontWeight: 700,
-                            fontSize: 20,
-                            marginBottom: 14,
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 8
+                    <div style={{ flex: "0 0 400px" }}>
+                        <img
+                            src={producto.imagen || "https://img.icons8.com/fluency/96/fast-moving-consumer-goods.png"}
+                            alt={producto.nombre}
+                            style={{
+                                width: "100%",
+                                height: 400,
+                                objectFit: "cover",
+                                borderRadius: 20,
+                                boxShadow: "0 20px 40px rgba(0,0,0,0.2)"
+                            }}
+                        />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                        <h1 style={{
+                            fontSize: "3rem",
+                            fontWeight: 800,
+                            marginBottom: "1rem",
+                            lineHeight: 1.2
                         }}>
-                            <FaStar style={{ color: "#facc15" }} /> Productos Relacionados
-                        </h3>
+                            {producto.nombre}
+                        </h1>
+                        <p style={{
+                            fontSize: "1.2rem",
+                            marginBottom: "2rem",
+                            opacity: 0.9,
+                            lineHeight: 1.6
+                        }}>
+                            {producto.descripcion}
+                        </p>
                         <div style={{
                             display: "flex",
-                            flexDirection: "row",
-                            gap: 12,
-                            justifyContent: "center",
-                            alignItems: "flex-start",
-                            overflowX: "auto"
+                            alignItems: "center",
+                            gap: "2rem",
+                            marginBottom: "2rem"
                         }}>
-                            {relacionados.length === 0 ? (
-                                <div style={{ color: "#aaa", fontSize: 15 }}>No hay productos relacionados.</div>
-                            ) : (
-                                relacionados.map(dest => (
-                                    <div
-                                        key={dest.codigo_producto}
-                                        style={{
-                                            background: "#fff",
-                                            borderRadius: 10,
-                                            boxShadow: "0 2px 8px #facc1511",
-                                            padding: 8,
-                                            minWidth: 90,
-                                            maxWidth: 110,
-                                            cursor: "pointer",
-                                            textAlign: "center",
-                                            border: "2px solid #facc15",
-                                            transition: "box-shadow 0.2s"
-                                        }}
-                                        onClick={() => navigate(`/productos/${dest.codigo_producto}`)}
-                                    >
-                                        <img
-                                            src={dest.imagen || "https://img.icons8.com/fluency/96/fast-moving-consumer-goods.png"}
-                                            alt={dest.nombre}
-                                            style={{
-                                                width: 55,
-                                                height: 55,
-                                                objectFit: "cover",
-                                                borderRadius: 7,
-                                                marginBottom: 6
-                                            }}
-                                        />
-                                        <div style={{ fontWeight: 700, color: "#facc15", fontSize: 13, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{dest.nombre}</div>
-                                        <div style={{ color: "#888", fontSize: 12 }}>${dest.precio}</div>
-                                    </div>
-                                ))
-                            )}
+                            <span style={{
+                                fontSize: "2.5rem",
+                                fontWeight: 800,
+                                background: "rgba(255,255,255,0.2)",
+                                padding: "0.5rem 1.5rem",
+                                borderRadius: 12,
+                                backdropFilter: "blur(10px)"
+                            }}>
+                                ${producto.precio}
+                            </span>
+                            <span style={{
+                                fontSize: "1.2rem",
+                                background: producto.stock > 0 ? "rgba(46, 204, 113, 0.2)" : "rgba(231, 76, 60, 0.2)",
+                                color: producto.stock > 0 ? "#2ecc71" : "#e74c3c",
+                                padding: "0.5rem 1rem",
+                                borderRadius: 8,
+                                fontWeight: 600
+                            }}>
+                                {producto.stock > 0 ? `Stock: ${producto.stock}` : "Sin stock"}
+                            </span>
+                        </div>
+                        
+                        {/* Botones de acción */}
+                        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+                            <button
+                                onClick={handleAgregarCarrito}
+                                disabled={producto.stock <= 0}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    background: producto.stock > 0 ? "#fff" : "rgba(255,255,255,0.3)",
+                                    color: producto.stock > 0 ? "#667eea" : "rgba(255,255,255,0.6)",
+                                    border: "none",
+                                    borderRadius: 12,
+                                    padding: "1rem 2rem",
+                                    fontWeight: 700,
+                                    fontSize: "1rem",
+                                    cursor: producto.stock > 0 ? "pointer" : "not-allowed",
+                                    transition: "all 0.3s ease",
+                                    boxShadow: "0 4px 15px rgba(0,0,0,0.1)"
+                                }}
+                            >
+                                <FaShoppingCart />
+                                Agregar al carrito
+                            </button>
+                            <button
+                                onClick={handleReservar}
+                                disabled={producto.stock <= 0}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    background: "rgba(255,255,255,0.2)",
+                                    color: "#fff",
+                                    border: "2px solid rgba(255,255,255,0.3)",
+                                    borderRadius: 12,
+                                    padding: "1rem 2rem",
+                                    fontWeight: 700,
+                                    fontSize: "1rem",
+                                    cursor: producto.stock > 0 ? "pointer" : "not-allowed",
+                                    transition: "all 0.3s ease",
+                                    opacity: producto.stock > 0 ? 1 : 0.5
+                                }}
+                            >
+                                <FaHeart />
+                                Reservar
+                            </button>
+                            <button
+                                onClick={() => navigate("/productos")}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    background: "rgba(255,255,255,0.2)",
+                                    color: "#fff",
+                                    border: "2px solid rgba(255,255,255,0.3)",
+                                    borderRadius: 12,
+                                    padding: "1rem 2rem",
+                                    fontWeight: 700,
+                                    fontSize: "1rem",
+                                    cursor: "pointer",
+                                    transition: "all 0.3s ease"
+                                }}
+                            >
+                                <FaHome />
+                                Volver
+                            </button>
                         </div>
                     </div>
                 </div>
-                {/* Columna derecha: Detalle y comentarios */}
-                <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-                    <h2 style={{
-                        fontWeight: 800,
-                        fontSize: 40,
-                        marginBottom: 14,
-                        color: "#222"
-                    }}>{producto.nombre}</h2>
-                    <div style={{
-                        color: "#666",
-                        fontSize: 22,
-                        marginBottom: 28,
-                        lineHeight: 1.6
-                    }}>{producto.descripcion}</div>
-                    <div style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 32,
-                        marginBottom: 18
+
+                {/* Productos relacionados */}
+                <div style={{ padding: "2rem 4rem" }}>
+                    <h3 style={{
+                        fontSize: "1.5rem",
+                        fontWeight: 700,
+                        color: "#333",
+                        marginBottom: "1.5rem",
+                        textAlign: "center"
                     }}>
-                        <span style={{
-                            fontWeight: 700,
-                            color: "#43e97b",
-                            fontSize: 32,
-                            background: "#eafff5",
-                            padding: "10px 32px",
-                            borderRadius: 14,
-                            boxShadow: "0 2px 8px #43e97b11"
-                        }}>
-                            ${producto.precio}
-                        </span>
-                        <span style={{
-                            color: producto.stock > 0 ? "#43e97b" : "#e74c3c",
-                            fontWeight: 700,
-                            fontSize: 22,
-                            background: producto.stock > 0 ? "#eafff5" : "#ffeaea",
-                            padding: "10px 24px",
-                            borderRadius: 12,
-                            boxShadow: "0 2px 8px #43e97b11"
-                        }}>
-                            Stock: {producto.stock > 0 ? producto.stock : "Sin stock"}
-                        </span>
+                        Productos Relacionados
+                    </h3>
+                    <div style={{
+                        display: "grid",
+                        gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                        gap: "1rem",
+                        maxWidth: "800px",
+                        margin: "0 auto"
+                    }}>
+                        {relacionados.map(rel => (
+                            <div
+                                key={rel.codigo_producto}
+                                onClick={() => navigate(`/productos/${rel.codigo_producto}`)}
+                                style={{
+                                    background: "#fff",
+                                    borderRadius: 12,
+                                    boxShadow: "0 4px 15px rgba(0,0,0,0.06)",
+                                    padding: "1rem",
+                                    cursor: "pointer",
+                                    transition: "all 0.3s ease",
+                                    border: "1px solid #f1f3f4"
+                                }}
+                                onMouseOver={e => {
+                                    e.currentTarget.style.transform = "translateY(-3px)";
+                                    e.currentTarget.style.boxShadow = "0 8px 20px rgba(0,0,0,0.1)";
+                                }}
+                                onMouseOut={e => {
+                                    e.currentTarget.style.transform = "none";
+                                    e.currentTarget.style.boxShadow = "0 4px 15px rgba(0,0,0,0.06)";
+                                }}
+                            >
+                                <img
+                                    src={rel.imagen || "https://img.icons8.com/fluency/96/fast-moving-consumer-goods.png"}
+                                    alt={rel.nombre}
+                                    style={{
+                                        width: "100%",
+                                        height: 120,
+                                        objectFit: "cover",
+                                        borderRadius: 8,
+                                        marginBottom: "0.75rem"
+                                    }}
+                                />
+                                <h4 style={{
+                                    fontWeight: 600,
+                                    color: "#333",
+                                    marginBottom: "0.5rem",
+                                    fontSize: "0.9rem",
+                                    lineHeight: "1.3",
+                                    textOverflow: "ellipsis",
+                                    overflow: "hidden",
+                                    whiteSpace: "nowrap"
+                                }}>
+                                    {rel.nombre}
+                                </h4>
+                                <p style={{ 
+                                    color: "#667eea", 
+                                    fontWeight: 700, 
+                                    fontSize: "1rem",
+                                    margin: 0
+                                }}>
+                                    ${rel.precio}
+                                </p>
+                            </div>
+                        ))}
                     </div>
-                    {/* Iconos de acción - Nuevo diseño */}
-                    <div style={{
-                        display: "flex",
-                        gap: 24,
-                        margin: "32px 0 36px 0",
-                        justifyContent: "flex-start"
+                </div>
+
+                {/* Sección de comentarios */}
+                <div style={{
+                    background: "#f8f9fa",
+                    padding: "3rem 4rem"
+                }}>
+                    <h3 style={{
+                        fontSize: "2rem",
+                        fontWeight: 700,
+                        color: "#333",
+                        marginBottom: "2rem",
+                        textAlign: "center"
                     }}>
-                        <button
-                            onClick={handleAgregarCarrito}
+                        Opiniones de Clientes ({comentarios.length})
+                    </h3>
+
+                    {/* Formulario para nuevo comentario - Disponible para todos */}
+                    <div style={{
+                        background: "#fff",
+                        borderRadius: 16,
+                        padding: "2rem",
+                        marginBottom: "2rem",
+                        boxShadow: "0 4px 15px rgba(0,0,0,0.08)"
+                    }}>
+                        <h4 style={{ marginBottom: "1rem", color: "#333" }}>Escribe tu opinión</h4>
+                        <div style={{ display: "flex", alignItems: "center", gap: "1rem", marginBottom: "1rem" }}>
+                            <span style={{ fontWeight: 600 }}>Calificación:</span>
+                            {[1, 2, 3, 4, 5].map(i => (
+                                <span
+                                    key={i}
+                                    style={{
+                                        color: i <= valoracion ? "#ffc107" : "#e0e0e0",
+                                        fontSize: 30,
+                                        cursor: "pointer",
+                                        transition: "color 0.2s"
+                                    }}
+                                    onClick={() => setValoracion(i)}
+                                >
+                                    ★
+                                </span>
+                            ))}
+                        </div>
+                        <textarea
+                            value={nuevoComentario}
+                            onChange={e => setNuevoComentario(e.target.value)}
+                            placeholder="Comparte tu experiencia con este producto..."
                             style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 12,
-                                background: producto.stock > 0 ? "linear-gradient(90deg, #43e97b 0%, #38f9d7 100%)" : "#bdbdbd",
+                                width: "100%",
+                                minHeight: 100,
+                                border: "2px solid #e9ecef",
+                                borderRadius: 12,
+                                padding: "1rem",
+                                fontSize: "1rem",
+                                resize: "vertical",
+                                marginBottom: "1rem"
+                            }}
+                        />
+                        <button
+                            onClick={enviarComentario}
+                            style={{
+                                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
                                 color: "#fff",
                                 border: "none",
-                                borderRadius: 14,
-                                padding: "16px 32px",
-                                fontWeight: 700,
-                                fontSize: 20,
-                                cursor: producto.stock > 0 ? "pointer" : "not-allowed",
-                                boxShadow: "0 4px 16px #43e97b33",
-                                opacity: producto.stock > 0 ? 1 : 0.6,
-                                transition: "transform 0.15s, box-shadow 0.15s, background 0.2s",
-                                position: "relative"
-                            }}
-                            title="Agregar al carrito"
-                            disabled={producto.stock <= 0}
-                            onMouseOver={e => {
-                                if (producto.stock > 0) e.currentTarget.style.transform = "translateY(-3px) scale(1.04)";
-                            }}
-                            onMouseOut={e => {
-                                e.currentTarget.style.transform = "none";
-                            }}
-                        >
-                            <FaShoppingCart size={24} />
-                            <span>Agregar al carrito</span>
-                        </button>
-                        <button
-                            onClick={handleReservar}
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 12,
-                                background: producto.stock > 0 ? "linear-gradient(90deg, #38b6ff 0%, #43e97b 100%)" : "#bdbdbd",
-                                color: "#fff",
-                                border: "none",
-                                borderRadius: 14,
-                                padding: "16px 32px",
-                                fontWeight: 700,
-                                fontSize: 20,
-                                cursor: producto.stock > 0 ? "pointer" : "not-allowed",
-                                boxShadow: "0 4px 16px #38b6ff33",
-                                opacity: producto.stock > 0 ? 1 : 0.6,
-                                transition: "transform 0.15s, box-shadow 0.15s, background 0.2s",
-                                position: "relative"
-                            }}
-                            title="Reservar producto"
-                            disabled={producto.stock <= 0}
-                            onMouseOver={e => {
-                                if (producto.stock > 0) e.currentTarget.style.transform = "translateY(-3px) scale(1.04)";
-                            }}
-                            onMouseOut={e => {
-                                e.currentTarget.style.transform = "none";
-                            }}
-                        >
-                            <FaHome size={24} />
-                            <span>Reservar producto</span>
-                        </button>
-                        <button
-                            onClick={() => navigate("/productos")}
-                            style={{
-                                display: "flex",
-                                alignItems: "center",
-                                gap: 12,
-                                background: "linear-gradient(90deg, #facc15 0%, #fcd34d 100%)",
-                                color: "#222",
-                                border: "none",
-                                borderRadius: 14,
-                                padding: "16px 32px",
-                                fontWeight: 700,
-                                fontSize: 20,
+                                borderRadius: 8,
+                                padding: "0.75rem 2rem",
+                                fontWeight: 600,
+                                fontSize: "1rem",
                                 cursor: "pointer",
-                                boxShadow: "0 4px 16px #facc1533",
-                                transition: "transform 0.15s, box-shadow 0.15s, background 0.2s",
-                                position: "relative"
+                                transition: "transform 0.2s"
                             }}
-                            onMouseOver={e => {
-                                e.currentTarget.style.transform = "translateY(-3px) scale(1.04)";
-                            }}
-                            onMouseOut={e => {
-                                e.currentTarget.style.transform = "none";
-                            }}
+                            onMouseOver={e => e.currentTarget.style.transform = "translateY(-2px)"}
+                            onMouseOut={e => e.currentTarget.style.transform = "none"}
                         >
-                            <span style={{ fontSize: 22 }}>↩</span>
-                            <span>Volver</span>
+                            Publicar Comentario
                         </button>
+                        {comentarioEnviado && (
+                            <div style={{
+                                color: "#28a745",
+                                marginTop: "1rem",
+                                fontWeight: 600,
+                                background: "#d4edda",
+                                padding: "0.5rem 1rem",
+                                borderRadius: 6,
+                                border: "1px solid #c3e6cb"
+                            }}>
+                                ¡Gracias por tu comentario! 🎉
+                            </div>
+                        )}
                     </div>
-                    {/* Comentarios */}
-                    <div style={{ textAlign: "center", marginBottom: 18 }}>
-                        <h2 style={{ fontWeight: 700, color: "#212529", fontSize: 28, marginBottom: 0, letterSpacing: 1 }}>Opiniones de clientes</h2>
-                        <div style={{ width: 60, height: 4, background: "#43e97b", borderRadius: 2, margin: "8px auto 0 auto" }} />
-                    </div>
-                    <div style={{
-                        maxWidth: 650,
-                        margin: "0 auto 2.5rem auto",
-                        background: "rgba(255,255,255,0.95)",
-                        borderRadius: "18px",
-                        boxShadow: "0 2px 12px #e0e0e0",
-                        padding: "2rem 2.5rem"
-                    }}>
+
+                    {/* Lista de comentarios */}
+                    <div>
                         {comentarios.length === 0 ? (
-                            <div style={{ textAlign: "center", color: "#888", fontSize: "1.1rem", fontStyle: "italic" }}>
-                                No hay comentarios aún.
+                            <div style={{
+                                textAlign: "center",
+                                color: "#888",
+                                fontSize: "1.2rem",
+                                padding: "3rem",
+                                background: "#fff",
+                                borderRadius: 16,
+                                boxShadow: "0 4px 15px rgba(0,0,0,0.08)"
+                            }}>
+                                Sé el primero en comentar sobre este producto 💬
                             </div>
                         ) : (
                             <>
                                 {comentariosPagina.map(comentario => (
-                                    <ComentarioCard comentario={comentario} key={comentario.id_comentario} />
+                                    <ComentarioCard key={comentario.id_comentario} comentario={comentario} />
                                 ))}
-                                <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 16, marginTop: 10 }}>
-                                    <button
-                                        onClick={handlePaginaAnterior}
-                                        disabled={paginaComentarios === 1}
-                                        style={{
-                                            background: "#43e97b",
-                                            color: "#fff",
-                                            border: "none",
-                                            borderRadius: 8,
-                                            padding: "6px 18px",
-                                            fontWeight: 600,
-                                            fontSize: "1rem",
-                                            cursor: paginaComentarios === 1 ? "not-allowed" : "pointer",
-                                            opacity: paginaComentarios === 1 ? 0.5 : 1
-                                        }}
-                                    >
-                                        Anterior
-                                    </button>
-                                    <span style={{ fontWeight: 600, color: "#43e97b" }}>
-                                        Página {paginaComentarios} de {totalPaginas}
-                                    </span>
-                                    <button
-                                        onClick={handlePaginaSiguiente}
-                                        disabled={paginaComentarios === totalPaginas}
-                                        style={{
-                                            background: "#43e97b",
-                                            color: "#fff",
-                                            border: "none",
-                                            borderRadius: 8,
-                                            padding: "6px 18px",
-                                            fontWeight: 600,
-                                            fontSize: "1rem",
-                                            cursor: paginaComentarios === totalPaginas ? "not-allowed" : "pointer",
-                                            opacity: paginaComentarios === totalPaginas ? 0.5 : 1
-                                        }}
-                                    >
-                                        Siguiente
-                                    </button>
-                                </div>
+                                
+                                {/* Paginación */}
+                                {totalPaginas > 1 && (
+                                    <div style={{
+                                        display: "flex",
+                                        justifyContent: "center",
+                                        alignItems: "center",
+                                        gap: "1rem",
+                                        marginTop: "2rem"
+                                    }}>
+                                        <button
+                                            onClick={() => setPaginaComentarios(prev => Math.max(1, prev - 1))}
+                                            disabled={paginaComentarios === 1}
+                                            style={{
+                                                background: "#667eea",
+                                                color: "#fff",
+                                                border: "none",
+                                                borderRadius: 8,
+                                                padding: "0.5rem 1rem",
+                                                cursor: paginaComentarios === 1 ? "not-allowed" : "pointer",
+                                                opacity: paginaComentarios === 1 ? 0.5 : 1
+                                            }}
+                                        >
+                                            Anterior
+                                        </button>
+                                        <span style={{ fontWeight: 600, color: "#667eea" }}>
+                                            {paginaComentarios} de {totalPaginas}
+                                        </span>
+                                        <button
+                                            onClick={() => setPaginaComentarios(prev => Math.min(totalPaginas, prev + 1))}
+                                            disabled={paginaComentarios === totalPaginas}
+                                            style={{
+                                                background: "#667eea",
+                                                color: "#fff",
+                                                border: "none",
+                                                borderRadius: 8,
+                                                padding: "0.5rem 1rem",
+                                                cursor: paginaComentarios === totalPaginas ? "not-allowed" : "pointer",
+                                                opacity: paginaComentarios === totalPaginas ? 0.5 : 1
+                                            }}
+                                        >
+                                            Siguiente
+                                        </button>
+                                    </div>
+                                )}
                             </>
                         )}
                     </div>
-                    {user && (
-                        <div style={{
-                            maxWidth: 650,
-                            margin: "2rem auto 0 auto",
-                            background: "#f8fafc",
-                            borderRadius: 16,
-                            boxShadow: "0 2px 12px #e0e0e0",
-                            padding: "1.5rem 2rem",
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "1rem"
-                        }}>
-                            <div>
-                                {[1, 2, 3, 4, 5].map(i =>
-                                    <span
-                                        key={i}
-                                        style={{
-                                            color: i <= valoracion ? "#ffc107" : "#e0e0e0",
-                                            fontSize: 28,
-                                            cursor: "pointer"
-                                        }}
-                                        onClick={() => setValoracion(i)}
-                                    >★</span>
-                                )}
-                            </div>
-                            <input
-                                type="text"
-                                placeholder="Añadir un comentario"
-                                value={nuevoComentario}
-                                onChange={e => setNuevoComentario(e.target.value)}
-                                style={{
-                                    flex: 1,
-                                    padding: "0.75rem 1rem",
-                                    borderRadius: "8px",
-                                    border: "1px solid #ccc",
-                                    fontSize: "1rem"
-                                }}
-                            />
-                            <button
-                                style={{
-                                    backgroundColor: "#43e97b",
-                                    color: "#fff",
-                                    border: "none",
-                                    padding: "0.75rem 1.5rem",
-                                    borderRadius: "8px",
-                                    fontWeight: 600,
-                                    fontSize: "1rem",
-                                    cursor: "pointer",
-                                    transition: "background 0.2s"
-                                }}
-                                onClick={enviarComentario}
-                            >
-                                Enviar
-                            </button>
-                            {comentarioEnviado && (
-                                <span style={{ color: "#43e97b", marginLeft: 8, fontWeight: 600 }}>¡Gracias por tu comentario!</span>
-                            )}
-                        </div>
-                    )}
                 </div>
             </div>
+
             {/* Footer */}
             <footer style={{
                 background: "#212529",
                 color: "#fff",
                 textAlign: "center",
-                padding: "1.2rem 0",
-                marginTop: "2rem",
-                borderTopLeftRadius: 12,
-                borderTopRightRadius: 12,
-                fontSize: "1rem"
+                padding: "2rem",
+                marginTop: "2rem"
             }}>
-                © {new Date().getFullYear()} Sabor Integraciones. Todos los derechos reservados.
+                <p style={{ margin: 0, fontSize: "1.1rem" }}>
+                    © {new Date().getFullYear()} Sabor Integraciones. Todos los derechos reservados.
+                </p>
             </footer>
         </div>
     );

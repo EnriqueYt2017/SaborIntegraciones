@@ -58,14 +58,14 @@ function Return() {
                 const productos = carrito.filter(item => item.tipo !== "plan_entrenamiento" && item.tipo !== "plan_nutricion");
                 const planes = carrito.filter(item => item.tipo === "plan_entrenamiento" || item.tipo === "plan_nutricion");
 
-                // Llama al backend para confirmar el pago y guardar el pedido SOLO CON PRODUCTOS
+                // Llama al backend para confirmar el pago y guardar el pedido CON TODO EL CARRITO
                 const res = await axios.post("http://localhost:5000/webpay/commit", {
                     token_ws,
                     rut: usuarioData?.rut,
                     direccion: usuarioData?.direccion,
                     observaciones: "",
                     total: totalConDesc,
-                    carrito: productos
+                    carrito: carrito // Enviar todo el carrito (productos y planes)
                 });
 
                 const formatFecha = (fecha) => {
@@ -81,27 +81,13 @@ function Return() {
                     setEstado("exito");
                     setDetalle({
                         ...res.data,
-                        carrito: productos // Solo productos en el voucher/pedido
+                        carrito: carrito, // Mostrar todo el carrito en el voucher
+                        planes: planes // Agregar los planes para mostrar separadamente
                     });
 
-
-                    // Guardar suscripciones de planes después del pago exitoso
-                    for (const item of planes) {
-                        await fetch("http://localhost:5000/api/suscripciones", {
-                            method: "POST",
-                            headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                                ID_PLAN: item.ID_PLAN_ENTRENAMIENTO || item.ID_PLAN_NUTRICION,
-                                NOMBRE: item.nombre,
-                                DESCRIPCION: item.descripcion,
-                                FECHAINICIO: formatFecha(item.planData.FECHAINICIO),
-                                FECHAFIN: formatFecha(item.planData.FECHAFIN),
-                                OBJETIVO: item.planData.OBJETIVO,
-                                RUT: usuarioData.rut || usuarioData.RUT,
-                                TIPO_PLAN: item.tipo === "plan_entrenamiento" ? "ENTRENAMIENTO" : "NUTRICION"
-                            })
-                        });
-                    }
+                    // ✅ Las suscripciones ya se crean automáticamente en el backend
+                    // No necesitamos crearlas aquí para evitar duplicados
+                    console.log("✅ Compra exitosa. Suscripciones creadas automáticamente en backend.");
 
                     localStorage.setItem("carrito", JSON.stringify([]));
                 } else {
@@ -221,24 +207,29 @@ function Return() {
 
         y += 2;
 
-        // Tabla productos
+        // Tabla productos y planes
         doc.setFillColor(...lightGray);
         doc.roundedRect(25, y, 160, 8, 2, 2, "F");
         doc.setFontSize(11);
         doc.setTextColor(...primary);
-        doc.text("Producto", 28, y + 6);
-        doc.text("Cant.", 98, y + 6, { align: "right" });
-        doc.text("Precio", 128, y + 6, { align: "right" });
+        doc.text("Producto/Plan", 28, y + 6);
+        doc.text("Tipo", 80, y + 6);
+        doc.text("Cant.", 108, y + 6, { align: "right" });
+        doc.text("Precio", 138, y + 6, { align: "right" });
         doc.text("Subtotal", 182, y + 6, { align: "right" });
         y += 10;
 
         doc.setFontSize(10);
         doc.setTextColor(0, 0, 0);
         detalle.carrito.forEach(item => {
-            doc.text(item.nombre, 28, y);
-            doc.text(String(item.cantidad), 98, y, { align: "right" });
-            doc.text(`$${item.precio}`, 128, y, { align: "right" });
-            doc.text(`$${item.precio * item.cantidad}`, 182, y, { align: "right" });
+            const tipo = item.tipo === "plan_entrenamiento" ? "Plan E." :
+                        item.tipo === "plan_nutricion" ? "Plan N." : "Producto";
+            
+            doc.text(item.nombre.substring(0, 25) + (item.nombre.length > 25 ? "..." : ""), 28, y);
+            doc.text(tipo, 80, y);
+            doc.text(String(item.cantidad || 1), 108, y, { align: "right" });
+            doc.text(`$${item.precio}`, 138, y, { align: "right" });
+            doc.text(`$${item.precio * (item.cantidad || 1)}`, 182, y, { align: "right" });
             y += 6;
         });
 
@@ -248,6 +239,43 @@ function Return() {
         doc.setLineWidth(0.2);
         doc.line(25, y, 185, y);
         y += 7;
+
+        // Mostrar detalles de planes si existen
+        const planes = detalle.carrito.filter(item => item.tipo === "plan_entrenamiento" || item.tipo === "plan_nutricion");
+        if (planes.length > 0) {
+            doc.setFontSize(12);
+            doc.setTextColor(...primary);
+            doc.text("DETALLES DE PLANES ADQUIRIDOS:", 25, y);
+            y += 8;
+            
+            planes.forEach((plan, index) => {
+                doc.setFontSize(10);
+                doc.setTextColor(0, 0, 0);
+                doc.text(`${index + 1}. ${plan.nombre}`, 28, y);
+                y += 5;
+                doc.text(`   Tipo: ${plan.tipo === "plan_entrenamiento" ? "Entrenamiento" : "Nutrición"}`, 28, y);
+                y += 5;
+                if (plan.planData?.DESCRIPCION) {
+                    doc.text(`   Descripción: ${plan.planData.DESCRIPCION.substring(0, 60)}...`, 28, y);
+                    y += 5;
+                }
+                if (plan.planData?.OBJETIVO) {
+                    doc.text(`   Objetivo: ${plan.planData.OBJETIVO}`, 28, y);
+                    y += 5;
+                }
+                if (plan.planData?.FECHAINICIO && plan.planData?.FECHAFIN) {
+                    doc.text(`   Vigencia: ${plan.planData.FECHAINICIO.substring(0, 10)} al ${plan.planData.FECHAFIN.substring(0, 10)}`, 28, y);
+                    y += 5;
+                }
+                y += 3; // Espaciado entre planes
+                
+                if (y > 240) {
+                    doc.addPage();
+                    y = 50;
+                }
+            });
+            y += 5;
+        }
 
         // Descuento y totales
         doc.setFontSize(11);
@@ -367,19 +395,25 @@ function Return() {
                 <table style={{ width: "100%", marginBottom: 18, borderCollapse: "collapse", fontSize: 15 }}>
                     <thead>
                         <tr style={{ background: "#e0f7fa" }}>
-                            <th style={{ padding: 8, borderRadius: 4 }}>Producto</th>
+                            <th style={{ padding: 8, borderRadius: 4 }}>Producto / Plan</th>
+                            <th style={{ padding: 8, borderRadius: 4 }}>Tipo</th>
                             <th style={{ padding: 8, borderRadius: 4 }}>Cantidad</th>
                             <th style={{ padding: 8, borderRadius: 4 }}>Precio</th>
                             <th style={{ padding: 8, borderRadius: 4 }}>Subtotal</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {detalle.carrito.map(item => (
-                            <tr key={item.codigo_producto}>
+                        {detalle.carrito.map((item, index) => (
+                            <tr key={item.codigo_producto || item.ID_PLAN_ENTRENAMIENTO || item.ID_PLAN_NUTRICION || index}>
                                 <td style={{ padding: 8 }}>{item.nombre}</td>
-                                <td style={{ padding: 8, textAlign: "center" }}>{item.cantidad}</td>
+                                <td style={{ padding: 8 }}>
+                                    {item.tipo === "plan_entrenamiento" ? "🏋️‍♂️ Plan Entrenamiento" :
+                                     item.tipo === "plan_nutricion" ? "🥗 Plan Nutrición" : 
+                                     "🛍️ Producto"}
+                                </td>
+                                <td style={{ padding: 8, textAlign: "center" }}>{item.cantidad || 1}</td>
                                 <td style={{ padding: 8 }}>${item.precio}</td>
-                                <td style={{ padding: 8 }}>${item.precio * item.cantidad}</td>
+                                <td style={{ padding: 8 }}>${item.precio * (item.cantidad || 1)}</td>
                             </tr>
                         ))}
                     </tbody>

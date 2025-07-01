@@ -99,7 +99,7 @@ function requireRoles(roles) {
 }
 
 app.put("/api/Usuarios", async (req, res) => {
-  const { correo, rut, dvrut, primer_nombre, primer_apellido, id_rol, telefono } = req.body;
+  const { correo, rut, dvrut, primer_nombre, primer_apellido, id_rol } = req.body;
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
@@ -109,7 +109,6 @@ app.put("/api/Usuarios", async (req, res) => {
         dvrut = :dvrut,
         primer_nombre = :primer_nombre,
         primer_apellido = :primer_apellido,
-        telefono = :telefono,
         id_rol = :id_rol
       WHERE correo = :correo AND rut = 12345678 AND dvrut = 0`,
       { rut, dvrut, primer_nombre, primer_apellido, id_rol, correo },
@@ -916,55 +915,184 @@ app.put("/api/planes-nutricion/:id", async (req, res) => {
   }
 });
 
+
+//COMENTARIOS
+app.get("/api/comentarios", async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT 
+        ID_COMENTARIO,
+        VALORACION,
+        FECHA_PUBLICACION,
+        TEXTO,
+        CODIGO_PRODUCTO 
+      FROM COMENTARIOS 
+      ORDER BY FECHA_PUBLICACION ASC`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    const comentarios = result.rows.map(row => ({
+      id_comentario: row.ID_COMENTARIO,
+      valoracion: row.VALORACION,
+      fecha_publicacion: row.FECHA_PUBLICACION,
+      texto: row.TEXTO,
+      codigo_producto: row.CODIGO_PRODUCTO
+    }));
+    res.json(comentarios);
+  } catch (err) {
+    console.error("Error al obtener comentarios:", err);
+    res.status(500).json({ error: "No se pudieron obtener los comentarios" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Endpoint para crear nuevo comentario
+app.post("/api/comentarios", async (req, res) => {
+  const { valoracion, texto, codigo_producto } = req.body;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      `INSERT INTO COMENTARIOS (
+        ID_COMENTARIO,
+        VALORACION,
+        FECHA_PUBLICACION,
+        TEXTO,
+        CODIGO_PRODUCTO
+      ) VALUES (
+        SEQ_COMENTARIOS.NEXTVAL,
+        :valoracion,
+        SYSDATE,
+        :texto,
+        :codigo_producto
+      )`,
+      {
+        valoracion: Number(valoracion),
+        texto,
+        codigo_producto
+      },
+      { autoCommit: true }
+    );
+    res.status(201).json({ mensaje: "Comentario agregado correctamente" });
+  } catch (err) {
+    console.error("Error al agregar comentario:", err);
+    res.status(500).json({ error: "No se pudo agregar el comentario" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.get("/api/comentarios/:codigo_producto", async (req, res) => {
+  const codigo_producto = req.params.codigo_producto;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT 
+        ID_COMENTARIO,
+        VALORACION,
+        FECHA_PUBLICACION,
+        TEXTO,
+        CODIGO_PRODUCTO 
+      FROM COMENTARIOS 
+      WHERE CODIGO_PRODUCTO = :codigo_producto 
+      ORDER BY FECHA_PUBLICACION DESC`,
+      [codigo_producto],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+
+    if (!result.rows) {
+      return res.json([]);
+    }
+
+    const comentarios = result.rows.map(row => ({
+      id_comentario: row.ID_COMENTARIO,
+      valoracion: row.VALORACION,
+      fecha_publicacion: row.FECHA_PUBLICACION,
+      texto: row.TEXTO,
+      codigo_producto: row.CODIGO_PRODUCTO
+    }));
+
+    res.json(comentarios);
+  } catch (err) {
+    console.error("Error al obtener comentarios:", err);
+    res.status(500).json({ error: "No se pudieron obtener los comentarios" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.delete("/api/comentarios/:id", async (req, res) => {
+  const id = req.params.id;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    await connection.execute(
+      "DELETE FROM COMENTARIOS WHERE ID_COMENTARIO = :id",
+      [id],
+      { autoCommit: true }
+    );
+    res.json({ mensaje: "Comentario eliminado correctamente" });
+  } catch (err) {
+    console.error("Error al eliminar comentario:", err);
+    res.status(500).json({ error: "No se pudo eliminar el comentario" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
 //ENDPOINT PARA ESTADÍSTICAS DEL ADMINISTRADOR
 // Endpoint de estadísticas para el dashboard
 app.get("/api/estadisticas-admin", async (req, res) => {
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
-    
+
     // 1. Total de usuarios registrados
     const totalUsuarios = await connection.execute(
       `SELECT COUNT(*) as total_usuarios FROM Usuarios`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    
+
     // 2. Total de productos disponibles
     const totalProductos = await connection.execute(
       `SELECT COUNT(*) as total_productos FROM Producto`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    
+
     // 3. Total de ventas/pedidos
     const totalVentas = await connection.execute(
       `SELECT COUNT(*) as total_ventas FROM pedidos`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    
+
     // 4. Ingresos totales del historial de compras
     const ingresosTotales = await connection.execute(
       `SELECT NVL(SUM(MONTO), 0) as ingresos_totales FROM HISTORIAL`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    
+
     // 5. Ingresos adicionales de suscripciones de entrenamiento
     const ingresosEntrenamiento = await connection.execute(
       `SELECT NVL(SUM(PRECIO), 0) as ingresos_entrenamiento FROM PLAN_ENTRENAMIENTO`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    
+
     // 6. Ingresos adicionales de suscripciones de nutrición
     const ingresosNutricion = await connection.execute(
       `SELECT NVL(SUM(PRECIO), 0) as ingresos_nutricion FROM PLAN_NUTRICION`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    
+
     // 7. Productos más vendidos (simular basándose en productos reales)
     const productosPopulares = await connection.execute(
       `SELECT 
@@ -993,7 +1121,7 @@ app.get("/api/estadisticas-admin", async (req, res) => {
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    
+
     // 8. Stock bajo de productos
     const stockBajo = await connection.execute(
       `SELECT NOMBRE, STOCK FROM Producto 
@@ -1002,28 +1130,28 @@ app.get("/api/estadisticas-admin", async (req, res) => {
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    
+
     // 9. Suscripciones activas de entrenamiento
     const suscripcionesEntrenamiento = await connection.execute(
       `SELECT COUNT(*) as cantidad FROM PLAN_ENTRENAMIENTO`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    
+
     // 10. Suscripciones activas de nutrición
     const suscripcionesNutricion = await connection.execute(
       `SELECT COUNT(*) as cantidad FROM PLAN_NUTRICION`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    
+
     // 11. Usuarios activos (por defecto todos los usuarios ya que no hay campo fecha_registro)
     const usuariosActivos = await connection.execute(
       `SELECT COUNT(*) as usuarios_activos FROM Usuarios`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    
+
     // 12. Ingresos por mes (últimos 6 meses del historial)
     const ingresosPorMes = await connection.execute(
       `SELECT 
@@ -1037,13 +1165,13 @@ app.get("/api/estadisticas-admin", async (req, res) => {
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
-    
+
     // Calcular ingresos totales incluyendo suscripciones
     const ingresosHistorial = ingresosTotales.rows[0]?.INGRESOS_TOTALES || 0;
-    const ingresosPlanes = (ingresosEntrenamiento.rows[0]?.INGRESOS_ENTRENAMIENTO || 0) + 
-                          (ingresosNutricion.rows[0]?.INGRESOS_NUTRICION || 0);
+    const ingresosPlanes = (ingresosEntrenamiento.rows[0]?.INGRESOS_ENTRENAMIENTO || 0) +
+      (ingresosNutricion.rows[0]?.INGRESOS_NUTRICION || 0);
     const ingresosTotalesCompletos = ingresosHistorial + ingresosPlanes;
-    
+
     // Estructurar respuesta
     res.json({
       resumen: {
@@ -1085,7 +1213,7 @@ app.get("/api/estadisticas-admin", async (req, res) => {
 
   } catch (err) {
     console.error("Error al obtener estadísticas:", err);
-    
+
     // En caso de error, intentar cargar datos de demostración como fallback
     try {
       const estadisticasDemo = require('./estadisticas_demo');
@@ -1113,7 +1241,7 @@ async function initializeSOAP() {
   console.log("🚀 Inicializando adaptador SOAP...");
   const soapAdapter = new SOAPAdapter();
   const initialized = await soapAdapter.initialize();
-  
+
   if (initialized) {
     // Configurar rutas SOAP
     createSOAPRoutes(app, soapAdapter);
@@ -1121,7 +1249,7 @@ async function initializeSOAP() {
   } else {
     console.warn("⚠️  Adaptador SOAP no pudo inicializarse. Funcionalidad SOAP limitada.");
   }
-  
+
   return soapAdapter;
 }
 
@@ -1130,10 +1258,10 @@ async function startServer() {
   try {
     // Inicializar SOAP
     const soapAdapter = await initializeSOAP();
-    
+
     // Guardar referencia del adaptador para uso en las rutas
     app.locals.soapAdapter = soapAdapter;
-    
+
     // Iniciar servidor HTTP
     const server = app.listen(5000, () => {
       console.log("✅ Servidor corriendo en http://localhost:5000");
@@ -1141,7 +1269,7 @@ async function startServer() {
       console.log("🔄 Sincronización SOAP disponible en /api/sincronizar-pedidos-soap");
       console.log("📋 Pedidos unificados en /api/pedidos-unificados/:usuario_id");
     });
-    
+
     // Manejar cierre graceful
     process.on('SIGINT', async () => {
       console.log('\n🛑 Cerrando servidor...');
@@ -1153,7 +1281,7 @@ async function startServer() {
         process.exit(0);
       });
     });
-    
+
   } catch (error) {
     console.error('❌ Error iniciando servidor:', error);
     process.exit(1);
@@ -1168,7 +1296,7 @@ app.post("/api/sincronizar-pedidos-soap", async (req, res) => {
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
-    
+
     // Obtener todos los pedidos que no están en SOAP
     const result = await connection.execute(
       `SELECT p.id_pedido, p.numero_orden, p.rut, p.fecha_pedido, p.estado, 
@@ -1257,7 +1385,7 @@ app.post("/api/sincronizar-pedidos-soap", async (req, res) => {
 // Ruta para crear pedido directo (integración completa)
 app.post("/api/pedidos-soap", async (req, res) => {
   const { id_usuario, direccion_entrega, telefono, email, productos, metodo_pago = "WEBPAY" } = req.body;
-  
+
   if (!id_usuario || !productos || !Array.isArray(productos) || productos.length === 0) {
     return res.status(400).json({
       success: false,
@@ -1268,7 +1396,7 @@ app.post("/api/pedidos-soap", async (req, res) => {
   let connection;
   try {
     connection = await oracledb.getConnection(dbConfig);
-    
+
     // Verificar que el usuario existe
     const userResult = await connection.execute(
       `SELECT rut, correo, primer_nombre, direccion, telefono FROM Usuarios WHERE rut = :rut`,
@@ -1284,7 +1412,7 @@ app.post("/api/pedidos-soap", async (req, res) => {
     }
 
     const usuario = userResult.rows[0];
-    
+
     // Preparar datos para SOAP usando datos del usuario si no se proporcionan
     const datosSOAP = {
       id_usuario: parseInt(id_usuario),
@@ -1310,14 +1438,14 @@ app.post("/api/pedidos-soap", async (req, res) => {
     }
 
     const resultadoSOAP = await soapAdapter.crearPedido(datosSOAP);
-    
+
     if (resultadoSOAP.success) {
       // Calcular total
       const total = productos.reduce((sum, prod) => sum + (parseFloat(prod.precio) * parseInt(prod.cantidad)), 0);
-      
+
       // Crear pedido en la base de datos tradicional también
       const numero_orden = `SOAP-${resultadoSOAP.id_pedido}-${Date.now()}`;
-      
+
       await connection.execute(
         `INSERT INTO pedidos (id_pedido, numero_orden, rut, fecha_pedido, estado, total, direccion, observaciones)
          VALUES (PEDIDOS_SEQ.NEXTVAL, :numero_orden, :rut, SYSDATE, 'PENDIENTE', :total, :direccion, 'Pedido creado via SOAP')`,
@@ -1358,14 +1486,16 @@ app.post("/api/pedidos-soap", async (req, res) => {
   }
 });
 
+
+
 // Ruta para buscar pedidos tanto en sistema tradicional como SOAP
 app.get("/api/pedidos-unificados/:usuario_id", async (req, res) => {
   const usuario_id = req.params.usuario_id;
   let connection;
-  
+
   try {
     connection = await oracledb.getConnection(dbConfig);
-    
+
     // Obtener pedidos tradicionales
     const pedidosTradicionales = await connection.execute(
       `SELECT id_pedido, numero_orden, rut, fecha_pedido, estado, total, direccion, observaciones

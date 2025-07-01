@@ -240,32 +240,75 @@ const Reserva = () => {
     const total = calcularTotal(productos);
 
     const handleReservar = async (e) => {
-        e.preventDefault();
-        const fechaReserva = new Date();
-        const fechaLimite = sumarDiasHabiles(fechaReserva, 10);
-        const numeroReserva = generarNumeroReserva();
+    e.preventDefault();
+    const token = localStorage.getItem('token');
 
-        const reservaData = {
-            numeroReserva,
-            usuario: { ...usuario, email },
-            sucursal: sucursales.find((s) => s.id === parseInt(sucursal)),
-            productos,
-            total,
-            fechaReserva: fechaReserva.toLocaleDateString(),
-            fechaLimite: fechaLimite.toLocaleDateString(),
-        };
+    if (!token) {
+        alert('Debes iniciar sesión para realizar una reserva');
+        navigate('/login');
+        return;
+    }
 
-        try {
-            await axios.post("http://localhost:5000/api/reservas", reservaData);
-            await axios.post("http://localhost:5000/enviar-voucher-reserva", reservaData);
-            setVoucher(reservaData);
+    // Formatear la fecha como YYYY-MM-DD
+    const fechaReserva = new Date().toISOString().split('T')[0];
+    const numeroReserva = generarNumeroReserva();
+
+    // Preparar datos para la reserva
+    const reservaData = {
+        fecha_reserva: fechaReserva,
+        cantidad: productos.reduce((total, p) => total + p.cantidad, 0),
+        codigo_producto: productos[0].codigo_producto,
+        email: email,
+        productos: productos,
+        numero_reserva: numeroReserva
+    };
+
+    try {
+        const responseReserva = await axios.post(
+            "http://localhost:5000/api/reservas",
+            reservaData,
+            {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+
+        if (responseReserva.status === 201) {
+            // Crear el objeto voucher para mostrar en pantalla
+            const fechaLimite = sumarDiasHabiles(new Date(), 10);
+            setVoucher({
+                numeroReserva,
+                usuario: {
+                    primer_nombre: usuario.primer_nombre,
+                    primer_apellido: usuario.primer_apellido,
+                    rut: usuario.rut,
+                    email: email
+                },
+                sucursal: sucursales.find(s => s.id === parseInt(sucursal)),
+                productos,
+                total,
+                fechaReserva: new Date().toLocaleDateString(),
+                fechaLimite: fechaLimite.toLocaleDateString()
+            });
+
+            // Limpiar el carrito después de una reserva exitosa
             localStorage.setItem("carrito_reserva", JSON.stringify([]));
             setProductos([]);
-        } catch (error) {
+        }
+    } catch (error) {
+        if (error.response?.status === 401) {
+            alert('Tu sesión ha expirado. Por favor, vuelve a iniciar sesión');
+            navigate('/login');
+        } else if (error.response?.status === 400) {
+            alert(error.response.data.error || "Error en los datos de la reserva");
+        } else {
             alert("No se pudo enviar la reserva. Intenta nuevamente.");
             console.error(error);
         }
-    };
+    }
+};
 
     const handleEliminarProducto = (id) => {
         const nuevosProductos = productos.filter((p) => p.id !== id);
