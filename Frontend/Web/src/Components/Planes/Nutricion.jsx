@@ -36,7 +36,6 @@ const Nutricion = () => {
     const [page, setPage] = useState(1);
     const [suscripciones, setSuscripciones] = useState([]);
     const [carrito, setCarrito] = useState([]);
-    const [showCarritoImg, setShowCarritoImg] = useState(false);
 
     useEffect(() => {
         fetchPlanes();
@@ -56,7 +55,7 @@ const Nutricion = () => {
         }
         const carritoLS = JSON.parse(localStorage.getItem("carrito")) || [];
         setCarrito(carritoLS);
-    }, []);
+    }, [navigate]);
 
     useEffect(() => {
         const fetchSuscripciones = async () => {
@@ -86,32 +85,45 @@ const Nutricion = () => {
             .catch(() => setLoading(false));
     };
 
-    const actualizarCarrito = (nuevoCarrito) => {
-        setCarrito(nuevoCarrito);
-        localStorage.setItem("carrito", JSON.stringify(nuevoCarrito));
-    };
 
-    const agregarPlanAlCarrito = (plan) => {
-        const yaEnCarrito = carrito.some(item => item.tipo === "plan_nutricion" && item.ID_PLAN_NUTRICION === plan.ID_PLAN_NUTRICION);
-        if (yaEnCarrito) {
+
+    const agregarPlanAlCarrito = async (plan) => {
+        // El carrito puede tener productos y planes, diferenciados por tipo
+        const carrito = JSON.parse(localStorage.getItem("carrito")) || [];
+        // Evita duplicados de planes
+        if (carrito.some(item => item.tipo === "plan_nutricion" && item.ID_PLAN_NUTRICION === plan.ID_PLAN_NUTRICION)) {
             alert("Este plan ya está en el carrito.");
             return;
         }
-        const nuevoCarrito = [
-            ...carrito,
-            {
-                tipo: "plan_nutricion",
-                ID_PLAN_NUTRICION: plan.ID_PLAN_NUTRICION,
-                nombre: plan.NOMBRE,
-                descripcion: plan.DESCRIPCION,
-                precio: Number(plan.PRECIO),
-                cantidad: 1,
-                planData: plan
-            }
-        ];
-        actualizarCarrito(nuevoCarrito);
-        setShowCarritoImg(true);
-        setTimeout(() => setShowCarritoImg(false), 1800);
+
+        carrito.push({
+            tipo: "plan_nutricion",
+            ID_PLAN_NUTRICION: plan.ID_PLAN_NUTRICION,
+            nombre: plan.NOMBRE,
+            descripcion: plan.DESCRIPCION,
+            precio: Number(plan.PRECIO),
+            cantidad: 1, // Siempre 1 para planes
+            planData: plan // Guarda todo el plan por si lo necesitas luego
+        });
+
+        localStorage.setItem("carrito", JSON.stringify(carrito));
+        alert("Plan agregado al carrito. Ve al carrito para pagar tu suscripción.");
+
+        // Guardar suscripción en la base de datos (solo si quieres hacerlo al agregar al carrito, normalmente es después del pago)
+        /*         await fetch("http://localhost:5000/api/suscripciones", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        ID_PLAN: plan.ID_PLAN_NUTRICION,
+                        NOMBRE: plan.NOMBRE,
+                        DESCRIPCION: plan.DESCRIPCION,
+                        FECHAINICIO: plan.FECHAINICIO,
+                        FECHAFIN: plan.FECHAFIN,
+                        OBJETIVO: plan.OBJETIVO,
+                        RUT: user.rut || user.RUT,
+                        TIPO_PLAN: "NUTRICION"
+                    })
+                }); */
     };
 
     const handleChange = (e) => {
@@ -609,16 +621,6 @@ const Nutricion = () => {
                             }}
                         />
                     </div>
-                    {/* Imagen de feedback al agregar al carrito */}
-                    {showCarritoImg && (
-                        <div style={styles.carritoImg}>
-                            <img src={VIDA_SANA_IMG} alt="Vida sana" width={90} height={90} />
-                            <div style={styles.carritoImgText}>
-                                ¡Plan agregado al carrito!<br />
-                                <FaCheckCircle style={{ color: "#059669", marginTop: 4, fontSize: 22 }} />
-                            </div>
-                        </div>
-                    )}
                     {/* Listado */}
                     {loading ? (
                         <div style={styles.loading}>Cargando...</div>

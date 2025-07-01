@@ -6,3 +6,11 @@ npm install pdfkit
 npm install twilio
 npm install multer
 npm install passport passport-google-oauth20 express-session
+npm install soap
+
+# Python dependencies for SOAP service
+pip install spyne
+pip install zeep
+pip install cx_Oracle
+pip install python-dotenv
+pip install lxml

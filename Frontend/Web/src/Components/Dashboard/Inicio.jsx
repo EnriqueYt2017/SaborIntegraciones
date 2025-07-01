@@ -2,6 +2,32 @@
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    LineElement,
+    PointElement,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement,
+} from 'chart.js';
+import { Bar, Line, Doughnut } from 'react-chartjs-2';
+import './Dashboard.css';
+
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    LineElement,
+    PointElement,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement
+);
 
 const sections = [
     { key: "Inicio", label: "Inicio" },
@@ -33,6 +59,10 @@ function Dashboard() {
     const [imagen, setImagen] = useState(null);
     const [preview, setPreview] = useState(null);
     const [editandoProducto, setEditandoProducto] = useState(false);
+    
+    // Estados para estadísticas del dashboard
+    const [estadisticas, setEstadisticas] = useState(null);
+    const [logoAnimado, setLogoAnimado] = useState(false);
 
     const fileInputRef = useRef();
 
@@ -50,6 +80,16 @@ function Dashboard() {
     const mostrarAlerta = (mensaje, tipo = "info") => {
         setAlerta({ visible: true, mensaje, tipo });
         setTimeout(() => setAlerta({ ...alerta, visible: false }), 3000);
+    };
+
+    // Obtener estadísticas para admin
+    const obtenerEstadisticas = async () => {
+        try {
+            const res = await axios.get("http://localhost:5000/api/estadisticas-admin");
+            setEstadisticas(res.data);
+        } catch (err) {
+            console.error("Error al obtener estadísticas:", err);
+        }
     };
 
     // Obtener usuarios
@@ -246,10 +286,15 @@ function Dashboard() {
             }
         }
         obtenerUsuarios();
+        obtenerEstadisticas();
         axios.get("http://localhost:5000/clientes")
             .then(response => setClientes(response.data))
             .catch(error => console.error("Error al obtener clientes:", error));
         obtenerProductos();
+        
+        // Activar animación del logo después de un breve delay
+        const timer = setTimeout(() => setLogoAnimado(true), 500);
+        return () => clearTimeout(timer);
     }, []);
 
     // Si no tiene permiso para dashboard, redirige
@@ -480,6 +525,75 @@ function Dashboard() {
                     filter: drop-shadow(0 2px 8px #ffd20040);
                     animation: epicFloat 3s infinite alternate;
                 }
+                .logo-bounce {
+                    animation: logoBounce 2s ease-in-out, logoGlow 3s ease-in-out infinite alternate;
+                    transform-origin: center bottom;
+                    transition: all 0.3s ease;
+                }
+                @keyframes logoBounce {
+                    0%, 20%, 50%, 80%, 100% { 
+                        transform: translateY(0) scale(1) rotate(0deg); 
+                    }
+                    10% { 
+                        transform: translateY(-5px) scale(1.02) rotate(-2deg); 
+                    }
+                    30% { 
+                        transform: translateY(-25px) scale(1.15) rotate(2deg); 
+                    }
+                    40% { 
+                        transform: translateY(-35px) scale(1.2) rotate(-1deg); 
+                    }
+                    60% { 
+                        transform: translateY(-15px) scale(1.1) rotate(1deg); 
+                    }
+                    70% { 
+                        transform: translateY(-8px) scale(1.05) rotate(0deg); 
+                    }
+                }
+                @keyframes logoGlow {
+                    0% { 
+                        filter: drop-shadow(0 4px 20px rgba(255, 204, 51, 0.4)) drop-shadow(0 0 30px rgba(255, 179, 71, 0.3));
+                    }
+                    50% { 
+                        filter: drop-shadow(0 6px 25px rgba(255, 204, 51, 0.6)) drop-shadow(0 0 40px rgba(255, 179, 71, 0.5));
+                    }
+                    100% { 
+                        filter: drop-shadow(0 4px 20px rgba(255, 204, 51, 0.4)) drop-shadow(0 0 30px rgba(255, 179, 71, 0.3));
+                    }
+                }
+                .stats-card {
+                    background: linear-gradient(135deg, #fff 0%, #f8fafc 100%);
+                    border-radius: 16px;
+                    padding: 24px;
+                    box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+                    border: 2px solid transparent;
+                    background-clip: padding-box;
+                    transition: all 0.3s ease;
+                }
+                .stats-card:hover {
+                    transform: translateY(-4px);
+                    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+                }
+                .stats-card.primary {
+                    border-image: linear-gradient(135deg, #ffb347, #ffcc33) 1;
+                }
+                .stats-card.success {
+                    border-image: linear-gradient(135deg, #22c55e, #43cea2) 1;
+                }
+                .stats-card.info {
+                    border-image: linear-gradient(135deg, #3b82f6, #8b5cf6) 1;
+                }
+                .stats-card.warning {
+                    border-image: linear-gradient(135deg, #f59e0b, #ef4444) 1;
+                }
+                .pulse-animation {
+                    animation: pulse 2s infinite;
+                }
+                @keyframes pulse {
+                    0% { transform: scale(1); }
+                    50% { transform: scale(1.05); }
+                    100% { transform: scale(1); }
+                }
                 `}
                 </style>
                 {/* Sidebar */}
@@ -662,6 +776,13 @@ function Dashboard() {
                                 position: "relative",
                             }}
                         >
+                            {/* Partículas flotantes de fondo */}
+                            <div className="floating-particle">💰</div>
+                            <div className="floating-particle">📊</div>
+                            <div className="floating-particle">🛍️</div>
+                            <div className="floating-particle">👥</div>
+                            <div className="floating-particle">✨</div>
+                            
                             {/* Decorative floating icon */}
                             <span className="epic-float" style={{
                                 position: "absolute",
@@ -679,16 +800,551 @@ function Dashboard() {
                                 {activeSection === "Api" && "🔗"}
                             </span>
                             {activeSection === "Inicio" && (
-                                <>
-                                    <p style={{ fontSize: 22, color: "#444", marginBottom: 18, fontWeight: 500 }}>
-                                        ¡Gestiona tu negocio con <span style={{ color: "#ffb347", fontWeight: 700 }}>estilo</span>! Selecciona una sección en el menú lateral.
-                                    </p>
-                                    <ul style={{ fontSize: 18, color: "#666", marginLeft: 28, lineHeight: 2 }}>
-                                        <li>👤 <b>Usuarios</b>: administra tu base de usuarios.</li>
-                                        <li>🛍️ <b>Productos</b>: controla tu inventario.</li>
-                                        <li>🔗 <b>API</b>: consulta clientes externos.</li>
-                                    </ul>
-                                </>
+                                <div style={{ width: "100%" }}>
+                                    {/* Logo animado de productos */}
+                                    <div style={{ 
+                                        textAlign: "center", 
+                                        marginBottom: 40,
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        gap: 20
+                                    }}>
+                                        <div className={logoAnimado ? "logo-bounce pulse-animation" : ""} style={{
+                                            fontSize: 120,
+                                            filter: "drop-shadow(0 4px 20px rgba(255, 204, 51, 0.4))",
+                                            marginBottom: 10
+                                        }}>
+                                            🛍️
+                                        </div>
+                                        <h3 style={{ 
+                                            fontSize: 28, 
+                                            fontWeight: 800, 
+                                            color: "#ffb347",
+                                            margin: 0,
+                                            textShadow: "0 2px 8px rgba(255, 179, 71, 0.3)"
+                                        }}>
+                                            ¡Bienvenido a Sabor Integraciones!
+                                        </h3>
+                                        <p style={{ 
+                                            fontSize: 18, 
+                                            color: "#666", 
+                                            margin: 0,
+                                            maxWidth: 600,
+                                            textAlign: "center",
+                                            lineHeight: 1.6
+                                        }}>
+                                            Gestiona tu negocio con estilo. Aquí tienes el resumen de tu plataforma.
+                                        </p>
+                                    </div>
+
+                                    {/* Estadísticas principales */}
+                                    {estadisticas && (
+                                        <div style={{ 
+                                            display: "grid", 
+                                            gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", 
+                                            gap: 24, 
+                                            marginBottom: 40 
+                                        }}>
+                                            <div className="stats-card primary fade-in-up">
+                                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                                    <div>
+                                                        <h4 style={{ margin: 0, fontSize: 16, color: "#666", fontWeight: 600 }}>Total Ventas</h4>
+                                                        <p className="highlight-number" style={{ margin: "8px 0 0 0", fontSize: 32, fontWeight: 900, color: "#ffb347" }}>
+                                                            {estadisticas.resumen.total_ventas}
+                                                        </p>
+                                                    </div>
+                                                    <span style={{ fontSize: 40, opacity: 0.8 }}>💰</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="stats-card success fade-in-up">
+                                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                                    <div>
+                                                        <h4 style={{ margin: 0, fontSize: 16, color: "#666", fontWeight: 600 }}>Ingresos Totales</h4>
+                                                        <p className="highlight-number" style={{ margin: "8px 0 0 0", fontSize: 32, fontWeight: 900, color: "#22c55e" }}>
+                                                            ${estadisticas.resumen.ingresos_totales?.toLocaleString()}
+                                                        </p>
+                                                    </div>
+                                                    <span style={{ fontSize: 40, opacity: 0.8 }}>💵</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="stats-card info fade-in-up">
+                                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                                    <div>
+                                                        <h4 style={{ margin: 0, fontSize: 16, color: "#666", fontWeight: 600 }}>Total Usuarios</h4>
+                                                        <p className="highlight-number" style={{ margin: "8px 0 0 0", fontSize: 32, fontWeight: 900, color: "#3b82f6" }}>
+                                                            {estadisticas.resumen.total_usuarios}
+                                                        </p>
+                                                    </div>
+                                                    <span style={{ fontSize: 40, opacity: 0.8 }}>👥</span>
+                                                </div>
+                                            </div>
+
+                                            <div className="stats-card warning fade-in-up">
+                                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                                                    <div>
+                                                        <h4 style={{ margin: 0, fontSize: 16, color: "#666", fontWeight: 600 }}>Total Productos</h4>
+                                                        <p className="highlight-number" style={{ margin: "8px 0 0 0", fontSize: 32, fontWeight: 900, color: "#f59e0b" }}>
+                                                            {estadisticas.resumen.total_productos}
+                                                        </p>
+                                                    </div>
+                                                    <span style={{ fontSize: 40, opacity: 0.8 }}>📦</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Productos más populares y suscripciones */}
+                                    {estadisticas && (
+                                        <div style={{ 
+                                            display: "grid", 
+                                            gridTemplateColumns: "1fr 1fr", 
+                                            gap: 24,
+                                            marginBottom: 40
+                                        }}>
+                                            {/* Productos populares */}
+                                            <div className="stats-card">
+                                                <h4 style={{ 
+                                                    margin: "0 0 20px 0", 
+                                                    fontSize: 20, 
+                                                    fontWeight: 800, 
+                                                    color: "#333",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: 8
+                                                }}>
+                                                    🔥 Productos Populares
+                                                </h4>
+                                                {estadisticas.productos_populares?.length > 0 ? (
+                                                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                                                        {estadisticas.productos_populares.slice(0, 3).map((producto, index) => (
+                                                            <div key={index} style={{
+                                                                display: "flex",
+                                                                justifyContent: "space-between",
+                                                                alignItems: "center",
+                                                                padding: "12px 16px",
+                                                                background: "#f8fafc",
+                                                                borderRadius: 8,
+                                                                border: "1px solid #e5e7eb"
+                                                            }}>
+                                                                <span style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>
+                                                                    {producto.descripcion}
+                                                                </span>
+                                                                <span style={{ 
+                                                                    fontSize: 14, 
+                                                                    fontWeight: 700, 
+                                                                    color: "#ffb347",
+                                                                    background: "#fff",
+                                                                    padding: "4px 8px",
+                                                                    borderRadius: 12
+                                                                }}>
+                                                                    {producto.cantidad_compras}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p style={{ color: "#666", fontStyle: "italic" }}>No hay datos disponibles</p>
+                                                )}
+                                            </div>
+
+                                            {/* Suscripciones activas */}
+                                            <div className="stats-card">
+                                                <h4 style={{ 
+                                                    margin: "0 0 20px 0", 
+                                                    fontSize: 20, 
+                                                    fontWeight: 800, 
+                                                    color: "#333",
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    gap: 8
+                                                }}>
+                                                    📋 Suscripciones Activas
+                                                </h4>
+                                                {estadisticas.suscripciones_activas?.length > 0 ? (
+                                                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                                                        {estadisticas.suscripciones_activas.map((suscripcion, index) => (
+                                                            <div key={index} style={{
+                                                                display: "flex",
+                                                                justifyContent: "space-between",
+                                                                alignItems: "center",
+                                                                padding: "12px 16px",
+                                                                background: "#f0fdf4",
+                                                                borderRadius: 8,
+                                                                border: "1px solid #bbf7d0"
+                                                            }}>
+                                                                <span style={{ fontSize: 16, fontWeight: 600, color: "#374151" }}>
+                                                                    {suscripcion.tipo_plan === 'plan_entrenamiento' ? '🏋️ Entrenamiento' : '🥗 Nutrición'}
+                                                                </span>
+                                                                <span style={{ 
+                                                                    fontSize: 14, 
+                                                                    fontWeight: 700, 
+                                                                    color: "#22c55e",
+                                                                    background: "#fff",
+                                                                    padding: "4px 8px",
+                                                                    borderRadius: 12
+                                                                }}>
+                                                                    {suscripcion.cantidad}
+                                                                </span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                ) : (
+                                                    <p style={{ color: "#666", fontStyle: "italic" }}>No hay suscripciones activas</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Accesos rápidos */}
+                                    <div className="stats-card" style={{ textAlign: "center" }}>
+                                        <h4 style={{ 
+                                            margin: "0 0 20px 0", 
+                                            fontSize: 20, 
+                                            fontWeight: 800, 
+                                            color: "#333" 
+                                        }}>
+                                            🚀 Accesos Rápidos
+                                        </h4>
+                                        <div style={{ 
+                                            display: "flex", 
+                                            justifyContent: "center", 
+                                            gap: 16, 
+                                            flexWrap: "wrap" 
+                                        }}>
+                                            {puedeVerUsuarios && (
+                                                <button
+                                                    onClick={() => setActiveSection("usuarios")}
+                                                    style={{
+                                                        background: "linear-gradient(135deg, #764ba2, #667eea)",
+                                                        color: "#fff",
+                                                        border: "none",
+                                                        borderRadius: 12,
+                                                        padding: "12px 24px",
+                                                        fontSize: 16,
+                                                        fontWeight: 700,
+                                                        cursor: "pointer",
+                                                        boxShadow: "0 4px 12px rgba(118, 75, 162, 0.3)",
+                                                        transition: "all 0.2s ease"
+                                                    }}
+                                                >
+                                                    👤 Gestionar Usuarios
+                                                </button>
+                                            )}
+                                            {puedeVerProductos && (
+                                                <button
+                                                    onClick={() => setActiveSection("productos")}
+                                                    style={{
+                                                        background: "linear-gradient(135deg, #f7971e, #ffcc33)",
+                                                        color: "#fff",
+                                                        border: "none",
+                                                        borderRadius: 12,
+                                                        padding: "12px 24px",
+                                                        fontSize: 16,
+                                                        fontWeight: 700,
+                                                        cursor: "pointer",
+                                                        boxShadow: "0 4px 12px rgba(247, 151, 30, 0.3)",
+                                                        transition: "all 0.2s ease"
+                                                    }}
+                                                >
+                                                    🛍️ Gestionar Productos
+                                                </button>
+                                            )}
+                                            {puedeVerApi && (
+                                                <button
+                                                    onClick={() => setActiveSection("Api")}
+                                                    style={{
+                                                        background: "linear-gradient(135deg, #43cea2, #22c55e)",
+                                                        color: "#fff",
+                                                        border: "none",
+                                                        borderRadius: 12,
+                                                        padding: "12px 24px",
+                                                        fontSize: 16,
+                                                        fontWeight: 700,
+                                                        cursor: "pointer",
+                                                        boxShadow: "0 4px 12px rgba(67, 206, 162, 0.3)",
+                                                        transition: "all 0.2s ease"
+                                                    }}
+                                                >
+                                                    🔗 Ver API Clientes
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Gráficos de estadísticas */}
+                                    {estadisticas && (
+                                        <div style={{ marginTop: 40 }}>
+                                            <h4 style={{ 
+                                                fontSize: 24, 
+                                                fontWeight: 800, 
+                                                color: "#333", 
+                                                marginBottom: 24,
+                                                textAlign: "center",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                gap: 12
+                                            }}>
+                                                📊 Análisis Visual
+                                            </h4>
+                                            
+                                            <div style={{ 
+                                                display: "grid", 
+                                                gridTemplateColumns: "1fr 1fr", 
+                                                gap: 24,
+                                                marginBottom: 24
+                                            }}>
+                                                {/* Gráfico de ingresos por mes */}
+                                                <div className="stats-card slide-in-left chart-container">
+                                                    <h5 style={{ 
+                                                        margin: "0 0 20px 0", 
+                                                        fontSize: 18, 
+                                                        fontWeight: 700, 
+                                                        color: "#333",
+                                                        textAlign: "center"
+                                                    }}>
+                                                        💰 Ingresos por Mes
+                                                    </h5>
+                                                    <div style={{ height: 300 }}>
+                                                        <Line
+                                                            data={{
+                                                                labels: estadisticas.pedidos_por_mes?.map(item => {
+                                                                    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+                                                                    return meses[item.mes - 1];
+                                                                }) || [],
+                                                                datasets: [{
+                                                                    label: 'Ingresos ($)',
+                                                                    data: estadisticas.pedidos_por_mes?.map(item => item.total_ingresos) || [],
+                                                                    borderColor: 'rgb(255, 179, 71)',
+                                                                    backgroundColor: 'rgba(255, 179, 71, 0.2)',
+                                                                    borderWidth: 3,
+                                                                    fill: true,
+                                                                    tension: 0.4,
+                                                                    pointBackgroundColor: '#ffb347',
+                                                                    pointBorderColor: '#fff',
+                                                                    pointBorderWidth: 2,
+                                                                    pointRadius: 6,
+                                                                }]
+                                                            }}
+                                                            options={{
+                                                                responsive: true,
+                                                                maintainAspectRatio: false,
+                                                                plugins: {
+                                                                    legend: {
+                                                                        display: false
+                                                                    }
+                                                                },
+                                                                scales: {
+                                                                    y: {
+                                                                        beginAtZero: true,
+                                                                        grid: {
+                                                                            color: 'rgba(0,0,0,0.1)'
+                                                                        },
+                                                                        ticks: {
+                                                                            callback: function(value) {
+                                                                                return '$' + value.toLocaleString();
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    x: {
+                                                                        grid: {
+                                                                            display: false
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+
+                                                {/* Gráfico de productos más vendidos */}
+                                                <div className="stats-card slide-in-right chart-container">
+                                                    <h5 style={{ 
+                                                        margin: "0 0 20px 0", 
+                                                        fontSize: 18, 
+                                                        fontWeight: 700, 
+                                                        color: "#333",
+                                                        textAlign: "center"
+                                                    }}>
+                                                        🏆 Top Productos
+                                                    </h5>
+                                                    <div style={{ height: 300 }}>
+                                                        <Bar
+                                                            data={{
+                                                                labels: estadisticas.productos_mas_vendidos?.slice(0, 5).map(item => 
+                                                                    item.nombre.length > 15 ? item.nombre.substring(0, 15) + '...' : item.nombre
+                                                                ) || [],
+                                                                datasets: [{
+                                                                    label: 'Ventas',
+                                                                    data: estadisticas.productos_mas_vendidos?.slice(0, 5).map(item => item.total_vendido) || [],
+                                                                    backgroundColor: [
+                                                                        'rgba(255, 179, 71, 0.8)',
+                                                                        'rgba(34, 197, 94, 0.8)',
+                                                                        'rgba(59, 130, 246, 0.8)',
+                                                                        'rgba(245, 158, 11, 0.8)',
+                                                                        'rgba(139, 92, 246, 0.8)'
+                                                                    ],
+                                                                    borderColor: [
+                                                                        '#ffb347',
+                                                                        '#22c55e',
+                                                                        '#3b82f6',
+                                                                        '#f59e0b',
+                                                                        '#8b5cf6'
+                                                                    ],
+                                                                    borderWidth: 2,
+                                                                    borderRadius: 8,
+                                                                }]
+                                                            }}
+                                                            options={{
+                                                                responsive: true,
+                                                                maintainAspectRatio: false,
+                                                                plugins: {
+                                                                    legend: {
+                                                                        display: false
+                                                                    }
+                                                                },
+                                                                scales: {
+                                                                    y: {
+                                                                        beginAtZero: true,
+                                                                        grid: {
+                                                                            color: 'rgba(0,0,0,0.1)'
+                                                                        }
+                                                                    },
+                                                                    x: {
+                                                                        grid: {
+                                                                            display: false
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Gráfico circular de stock bajo y usuarios activos */}
+                                            <div style={{ 
+                                                display: "grid", 
+                                                gridTemplateColumns: "1fr 1fr", 
+                                                gap: 24 
+                                            }}>
+                                                {/* Stock bajo */}
+                                                <div className="stats-card fade-in-up chart-container">
+                                                    <h5 style={{ 
+                                                        margin: "0 0 20px 0", 
+                                                        fontSize: 18, 
+                                                        fontWeight: 700, 
+                                                        color: "#333",
+                                                        textAlign: "center"
+                                                    }}>
+                                                        ⚠️ Estado del Stock
+                                                    </h5>
+                                                    <div style={{ height: 300, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                                        <div style={{ width: '250px', height: '250px' }}>
+                                                            <Doughnut
+                                                                data={{
+                                                                    labels: ['Stock Bajo', 'Stock Normal'],
+                                                                    datasets: [{
+                                                                        data: [
+                                                                            estadisticas.stock_bajo?.length || 0,
+                                                                            Math.max((estadisticas.resumen?.total_productos || 0) - (estadisticas.stock_bajo?.length || 0), 0)
+                                                                        ],
+                                                                        backgroundColor: [
+                                                                            'rgba(239, 68, 68, 0.8)',
+                                                                            'rgba(34, 197, 94, 0.8)'
+                                                                        ],
+                                                                        borderColor: [
+                                                                            '#ef4444',
+                                                                            '#22c55e'
+                                                                        ],
+                                                                        borderWidth: 2,
+                                                                    }]
+                                                                }}
+                                                                options={{
+                                                                    responsive: true,
+                                                                    maintainAspectRatio: false,
+                                                                    plugins: {
+                                                                        legend: {
+                                                                            position: 'bottom',
+                                                                            labels: {
+                                                                                padding: 20,
+                                                                                fontSize: 14,
+                                                                                fontWeight: 600
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Actividad de usuarios */}
+                                                <div className="stats-card fade-in-up chart-container">
+                                                    <h5 style={{ 
+                                                        margin: "0 0 20px 0", 
+                                                        fontSize: 18, 
+                                                        fontWeight: 700, 
+                                                        color: "#333",
+                                                        textAlign: "center"
+                                                    }}>
+                                                        👥 Actividad de Usuarios
+                                                    </h5>
+                                                    <div style={{ height: 300, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                                        <div style={{ width: '250px', height: '250px' }}>
+                                                            <Doughnut
+                                                                data={{
+                                                                    labels: ['Usuarios Activos', 'Usuarios Inactivos'],
+                                                                    datasets: [{
+                                                                        data: [
+                                                                            estadisticas.usuarios_activos || 0,
+                                                                            Math.max((estadisticas.resumen?.total_usuarios || 0) - (estadisticas.usuarios_activos || 0), 0)
+                                                                        ],
+                                                                        backgroundColor: [
+                                                                            'rgba(59, 130, 246, 0.8)',
+                                                                            'rgba(156, 163, 175, 0.8)'
+                                                                        ],
+                                                                        borderColor: [
+                                                                            '#3b82f6',
+                                                                            '#9ca3af'
+                                                                        ],
+                                                                        borderWidth: 2,
+                                                                    }]
+                                                                }}
+                                                                options={{
+                                                                    responsive: true,
+                                                                    maintainAspectRatio: false,
+                                                                    plugins: {
+                                                                        legend: {
+                                                                            position: 'bottom',
+                                                                            labels: {
+                                                                                padding: 20,
+                                                                                fontSize: 14,
+                                                                                fontWeight: 600
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                }}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {!estadisticas && (
+                                        <div style={{ textAlign: "center", marginTop: 40 }}>
+                                            <p style={{ fontSize: 18, color: "#666", fontStyle: "italic" }}>
+                                                <span style={{ fontSize: 24, marginRight: 8 }}>⏳</span>
+                                                Cargando estadísticas...
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
                             )}
                             {activeSection === "usuarios" && puedeVerUsuarios && (
                                 <div style={{ width: "100%" }}>

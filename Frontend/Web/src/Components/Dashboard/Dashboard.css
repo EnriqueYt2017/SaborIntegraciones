@@ -1,0 +1,166 @@
+/* Animaciones adicionales para el dashboard */
+
+@keyframes slideInFromLeft {
+  0% {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInFromRight {
+  0% {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideInFromTop {
+  0% {
+    transform: translateY(-50px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  0% {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes chartGlow {
+  0%, 100% {
+    box-shadow: 0 4px 20px rgba(255, 179, 71, 0.2);
+  }
+  50% {
+    box-shadow: 0 8px 30px rgba(255, 179, 71, 0.4);
+  }
+}
+
+/* Clases de animación para los componentes */
+.slide-in-left {
+  animation: slideInFromLeft 0.6s ease-out;
+}
+
+.slide-in-right {
+  animation: slideInFromRight 0.6s ease-out;
+}
+
+.slide-in-top {
+  animation: slideInFromTop 0.5s ease-out;
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+.chart-container {
+  animation: chartGlow 3s ease-in-out infinite;
+}
+
+/* Mejoras de hover para las estadísticas */
+.stats-card:hover .chart-container {
+  animation-duration: 1.5s;
+}
+
+/* Efectos de resplandor para los números importantes */
+.highlight-number {
+  text-shadow: 0 0 10px rgba(255, 179, 71, 0.5);
+  transition: text-shadow 0.3s ease;
+}
+
+.highlight-number:hover {
+  text-shadow: 0 0 20px rgba(255, 179, 71, 0.8);
+}
+
+/* Animaciones secuenciales para las tarjetas de estadísticas */
+.stats-card:nth-child(1) {
+  animation-delay: 0.1s;
+}
+
+.stats-card:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.stats-card:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+.stats-card:nth-child(4) {
+  animation-delay: 0.4s;
+}
+
+/* Efecto de partículas flotantes */
+@keyframes float1 {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  33% { transform: translateY(-10px) rotate(1deg); }
+  66% { transform: translateY(5px) rotate(-1deg); }
+}
+
+@keyframes float2 {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-15px) rotate(2deg); }
+}
+
+@keyframes float3 {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  25% { transform: translateY(-8px) rotate(-1deg); }
+  75% { transform: translateY(3px) rotate(1deg); }
+}
+
+.floating-particle {
+  position: absolute;
+  opacity: 0.1;
+  pointer-events: none;
+  font-size: 20px;
+}
+
+.floating-particle:nth-child(1) {
+  animation: float1 6s ease-in-out infinite;
+  top: 10%;
+  left: 5%;
+}
+
+.floating-particle:nth-child(2) {
+  animation: float2 8s ease-in-out infinite;
+  top: 30%;
+  right: 10%;
+  animation-delay: -2s;
+}
+
+.floating-particle:nth-child(3) {
+  animation: float3 7s ease-in-out infinite;
+  bottom: 20%;
+  left: 15%;
+  animation-delay: -4s;
+}
+
+.floating-particle:nth-child(4) {
+  animation: float1 9s ease-in-out infinite;
+  bottom: 40%;
+  right: 5%;
+  animation-delay: -1s;
+}
+
+.floating-particle:nth-child(5) {
+  animation: float2 5s ease-in-out infinite;
+  top: 60%;
+  left: 50%;
+  animation-delay: -3s;
+}

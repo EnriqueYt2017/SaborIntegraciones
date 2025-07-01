@@ -192,8 +192,17 @@ function Carrito() {
         localStorage.setItem("carrito", JSON.stringify(nuevoCarrito));
     };
 
-    const eliminarPlan = (idPlan) => {
-        const nuevoCarrito = carrito.filter(item => item.ID_PLAN_ENTRENAMIENTO !== idPlan);
+    const eliminarPlan = (idPlan, tipoPlan) => {
+        let nuevoCarrito;
+        if (tipoPlan === "plan_entrenamiento") {
+            nuevoCarrito = carrito.filter(item => item.ID_PLAN_ENTRENAMIENTO !== idPlan);
+        } else if (tipoPlan === "plan_nutricion") {
+            nuevoCarrito = carrito.filter(item => item.ID_PLAN_NUTRICION !== idPlan);
+        } else {
+            nuevoCarrito = carrito.filter(item => 
+                item.ID_PLAN_ENTRENAMIENTO !== idPlan && item.ID_PLAN_NUTRICION !== idPlan
+            );
+        }
         setCarrito(nuevoCarrito);
         localStorage.setItem("carrito", JSON.stringify(nuevoCarrito));
     };
@@ -346,12 +355,14 @@ function Carrito() {
                             </thead>
                             <tbody>
                                 {carrito.map((item, idx) => (
-                                    <tr key={item.codigo_producto || item.ID_PLAN_ENTRENAMIENTO || idx}>
+                                    <tr key={item.codigo_producto || item.ID_PLAN_ENTRENAMIENTO || item.ID_PLAN_NUTRICION || idx}>
                                         <td style={styles.td}>
                                             {item.imagen ? (
                                                 <img src={item.imagen} alt={item.nombre} style={styles.productImg} />
                                             ) : item.tipo === "plan_entrenamiento" ? (
-                                                <span role="img" aria-label="plan" style={{ fontSize: 40 }}>🏋️‍♂️</span>
+                                                <span role="img" aria-label="plan entrenamiento" style={{ fontSize: 40 }}>🏋️‍♂️</span>
+                                            ) : item.tipo === "plan_nutricion" ? (
+                                                <span role="img" aria-label="plan nutricion" style={{ fontSize: 40 }}>🥗</span>
                                             ) : (
                                                 <span role="img" aria-label="producto" style={{ fontSize: 56 }}>🛍️</span>
                                             )}
@@ -363,6 +374,11 @@ function Carrito() {
                                                     (Plan Entrenamiento)
                                                 </span>
                                             )}
+                                            {item.tipo === "plan_nutricion" && (
+                                                <span style={{ color: "#22c55e", fontWeight: 600, marginLeft: 8, fontSize: 13 }}>
+                                                    (Plan Nutrición)
+                                                </span>
+                                            )}
                                         </td>
                                         <td style={styles.td}>${item.precio}</td>
                                         <td style={styles.td}>{item.cantidad}</td>
@@ -371,7 +387,14 @@ function Carrito() {
                                             {item.tipo === "plan_entrenamiento" ? (
                                                 <button
                                                     style={styles.eliminarBtn}
-                                                    onClick={() => eliminarPlan(item.ID_PLAN_ENTRENAMIENTO)}
+                                                    onClick={() => eliminarPlan(item.ID_PLAN_ENTRENAMIENTO, "plan_entrenamiento")}
+                                                >
+                                                    Eliminar
+                                                </button>
+                                            ) : item.tipo === "plan_nutricion" ? (
+                                                <button
+                                                    style={styles.eliminarBtn}
+                                                    onClick={() => eliminarPlan(item.ID_PLAN_NUTRICION, "plan_nutricion")}
                                                 >
                                                     Eliminar
                                                 </button>
