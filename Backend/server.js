@@ -105,7 +105,7 @@ app.put("/api/Usuarios", async (req, res) => {
         telefono = :telefono,
         id_rol = :id_rol
       WHERE correo = :correo AND rut = 12345678 AND dvrut = 0`,
-      { rut, dvrut, primer_nombre, primer_apellido, id_rol, correo },
+      { rut, dvrut, primer_nombre, primer_apellido, telefono, id_rol, correo },
       { autoCommit: true }
     );
     if (result.rowsAffected === 0) {
