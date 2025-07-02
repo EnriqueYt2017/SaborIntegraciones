@@ -14,6 +14,7 @@ import Seguimiento from "./Components/Pedidos/Seguimiento";
 import Reserva from "./Components/Productos/Reserva";
 import VerDetalleProducto from "./Components/Productos/VerDetalleProducto";
 import GoogleSuccess from "./Components/Login-Register/google-success";
+import CompletarDatosGoogle from "./Components/Login-Register/completar-datos";
 //Planes
 import Entrenamiento from "./Components/Planes/Entrenamiento"
 import Nutricion from "./Components/Planes/Nutricion";
@@ -52,6 +53,7 @@ const App = () => {
 
                 {/* 🔹 Rutas protegidas */}
                 <Route path="/google-success" element={<GoogleSuccess />} />
+                <Route path="/completar-datos" element={<CompletarDatosGoogle />} />
 
                 {/* 🔹 Rutas de error */}
                 {/* 🔹 Página no encontrada */}

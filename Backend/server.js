@@ -91,6 +91,35 @@ function requireRoles(roles) {
   };
 }
 
+app.put("/api/Usuarios", async (req, res) => {
+  const { correo, rut, dvrut, primer_nombre, primer_apellido, id_rol, telefono } = req.body;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `UPDATE Usuarios SET 
+        rut = :rut,
+        dvrut = :dvrut,
+        primer_nombre = :primer_nombre,
+        primer_apellido = :primer_apellido,
+        telefono = :telefono,
+        id_rol = :id_rol
+      WHERE correo = :correo AND rut = 12345678 AND dvrut = 0`,
+      { rut, dvrut, primer_nombre, primer_apellido, id_rol, correo },
+      { autoCommit: true }
+    );
+    if (result.rowsAffected === 0) {
+      return res.status(404).json({ error: "Usuario no encontrado o ya actualizado" });
+    }
+    res.json({ mensaje: "Datos actualizados correctamente" });
+  } catch (err) {
+    console.error("Error en /api/Usuarios (Google):", err);
+    res.status(500).json({ error: "No se pudo actualizar el usuario" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
 app.get("/api/Usuarios", async (req, res) => {
   let connection;
   try {
@@ -101,7 +130,7 @@ app.get("/api/Usuarios", async (req, res) => {
     }
 
     const result = await connection.execute(
-      `SELECT rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, id_rol FROM Usuarios`,
+      `SELECT rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, telefono, id_rol FROM Usuarios`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
@@ -120,7 +149,7 @@ app.get("/api/Usuarios", async (req, res) => {
 app.post("/api/Usuarios", async (req, res) => {
   const {
     rut, dvrut, primer_nombre, segundo_nombre,
-    primer_apellido, segundo_apellido, direccion, correo, pass, id_rol
+    primer_apellido, segundo_apellido, direccion, correo, pass, id_rol, telefono
   } = req.body;
 
   let connection;
@@ -130,9 +159,9 @@ app.post("/api/Usuarios", async (req, res) => {
 
     await connection.execute(
       `INSERT INTO Usuarios 
-        (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL) 
+        (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL, TELEFONO) 
        VALUES 
-        (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol)`,
+        (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol, :telefono)`,
       {
         rut,
         dvrut,
@@ -142,6 +171,7 @@ app.post("/api/Usuarios", async (req, res) => {
         segundo_apellido,
         direccion,
         correo,
+        telefono,
         pass: hashedPassword,
         id_rol: Number(id_rol)
       },
@@ -168,7 +198,6 @@ app.get("/clientes", async (req, res) => {
     res.status(500).json({ error: "Error interno del servidor" });
   }
 });
-
 
 //API DE BLUEEXPRESS y PEDIDOS
 app.get("/pedidos", async (req, res) => {
@@ -353,7 +382,7 @@ app.post("/register", async (req, res) => {
       `INSERT INTO Usuarios 
     (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL) 
    VALUES 
-    (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol)`,
+    (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol`,
       {
         rut,
         dvrut,
@@ -364,7 +393,7 @@ app.post("/register", async (req, res) => {
         direccion,
         correo,
         pass: hashedPassword,
-        id_rol: 1 // o el valor correcto
+        id_rol: 1,
       },
       { autoCommit: true }
     );
@@ -463,7 +492,6 @@ app.get("/perfil", async (req, res) => {
 
     res.json(result.rows[0]);
   } catch (err) {
-    console.error("Error al obtener perfil:", err);
     res.status(500).json({ error: "Error interno del servidor" });
   }
 });
@@ -476,7 +504,7 @@ app.put("/perfil", async (req, res) => {
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET || "default_secret_key");
     const rutToken = decoded.rut;
-    let { rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo } = req.body;
+    let { rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, telefono } = req.body;
 
     connection = await oracledb.getConnection(dbConfig);
 
@@ -509,6 +537,7 @@ app.put("/perfil", async (req, res) => {
       }
     }
 
+
     // Actualiza usando el rut del token como identificador
     await connection.execute(
       `UPDATE Usuarios 
@@ -518,13 +547,21 @@ app.put("/perfil", async (req, res) => {
            segundo_nombre = :segundo_nombre, 
            primer_apellido = :primer_apellido, 
            segundo_apellido = :segundo_apellido, 
-           direccion = :direccion
+           direccion = :direccion,
+            telefono = :telefono
        WHERE rut = :rutToken`,
-      [rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, rutToken],
+      [rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, telefono, rutToken],
       { autoCommit: true }
     );
+    // ...después de actualizar el usuario...
+    const nuevoToken = jwt.sign(
+      { rut, primer_nombre, correo, id_rol: usuarioActual.ID_ROL || usuarioActual.id_rol || 1 },
+      process.env.JWT_SECRET || "default_secret_key",
+      { expiresIn: "7h" }
+    );
 
-    res.json({ mensaje: "Perfil actualizado correctamente", rut, dvrut });
+    res.json({ mensaje: "Perfil actualizado correctamente", rut, dvrut, token: nuevoToken });
+
   } catch (error) {
     res.status(500).json({ error: "Error interno del servidor" });
   } finally {
@@ -791,43 +828,23 @@ app.post("/api/foro-entrenamiento", async (req, res) => {
 });
 
 //NUTRICION
-app.get("/api/planes-nutricion", async (req, res) => {
-  let connection;
-  try {
-    connection = await oracledb.getConnection(dbConfig);
-    const result = await connection.execute(
-      `SELECT ID_PLAN_NUTRICION, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS, MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT FROM PLAN_NUTRICION`,
-      [],
-      { outFormat: oracledb.OUT_FORMAT_OBJECT }
-    );
-    res.json(result.rows);
-  } catch (err) {
-    console.error("Error al obtener planes de nutrición:", err);
-    res.status(500).json({ error: "No se pudieron obtener los planes" });
-  } finally {
-    if (connection) await connection.close();
-  }
-});
-
 app.post("/api/planes-nutricion", async (req, res) => {
+  const {
+    NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS,
+    MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT, PRECIO
+  } = req.body;
   let connection;
   try {
-    const {
-      NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS,
-      MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT
-    } = req.body;
-
     connection = await oracledb.getConnection(dbConfig);
-
     await connection.execute(
       `INSERT INTO PLAN_NUTRICION (
         ID_PLAN_NUTRICION, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN,
-        CALORIAS_DIARIAS, MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT
+        CALORIAS_DIARIAS, MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT, PRECIO
       ) VALUES (
         SEQ_PLAN_NUTRICION.NEXTVAL, :NOMBRE, :DESCRIPCION,
         TO_DATE(:FECHAINICIO, 'YYYY-MM-DD'), TO_DATE(:FECHAFIN, 'YYYY-MM-DD'),
         :CALORIAS_DIARIAS, :MACRONUTRIENTES, :TIPODIETA,
-        :OBJETIVO, :OBSERVACIONES, :RUT
+        :OBJETIVO, :OBSERVACIONES, :RUT, :PRECIO
       )`,
       {
         NOMBRE,
@@ -839,17 +856,34 @@ app.post("/api/planes-nutricion", async (req, res) => {
         TIPODIETA,
         OBJETIVO,
         OBSERVACIONES,
-        RUT: Number(RUT)
+        RUT: Number(RUT),
+        PRECIO: Number(PRECIO)
       },
       { autoCommit: true }
     );
-
     res.status(201).json({ mensaje: "Plan de nutrición agregado correctamente" });
   } catch (err) {
     console.error("Error al agregar plan de nutrición:", err);
     res.status(500).json({ error: "No se pudo agregar el plan" });
+  } finally {
+    if (connection) await connection.close();
   }
-  finally {
+});
+
+app.get("/api/planes-nutricion", async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    const result = await connection.execute(
+      `SELECT ID_PLAN_NUTRICION, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS, MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT, NVL(PRECIO, 0)  AS PRECIO FROM PLAN_NUTRICION`,
+      [],
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("Error al obtener planes de nutrición:", err);
+    res.status(500).json({ error: "No se pudieron obtener los planes" });
+  } finally {
     if (connection) await connection.close();
   }
 });
@@ -874,11 +908,12 @@ app.delete("/api/planes-nutricion/:id", async (req, res) => {
 });
 
 // Modificar plan de nutrición
+// ...existing code...
 app.put("/api/planes-nutricion/:id", async (req, res) => {
   const id = req.params.id;
   const {
     NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS,
-    MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT
+    MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT, PRECIO
   } = req.body;
   let connection;
   try {
@@ -894,17 +929,29 @@ app.put("/api/planes-nutricion/:id", async (req, res) => {
         TIPODIETA = :TIPODIETA,
         OBJETIVO = :OBJETIVO,
         OBSERVACIONES = :OBSERVACIONES,
-        RUT = :RUT
+        RUT = :RUT,
+        PRECIO = :PRECIO
       WHERE ID_PLAN_NUTRICION = :id`,
       {
-        NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, CALORIAS_DIARIAS,
-        MACRONUTRIENTES, TIPODIETA, OBJETIVO, OBSERVACIONES, RUT, id
+        NOMBRE,
+        DESCRIPCION,
+        FECHAINICIO: FECHAINICIO ? FECHAINICIO.substring(0, 10) : null,
+        FECHAFIN: FECHAFIN ? FECHAFIN.substring(0, 10) : null,
+        CALORIAS_DIARIAS: Number(CALORIAS_DIARIAS),
+        MACRONUTRIENTES,
+        TIPODIETA,
+        OBJETIVO,
+        OBSERVACIONES,
+        RUT: Number(RUT),
+        PRECIO: Number(PRECIO),
+        id
       },
       { autoCommit: true }
     );
     res.json({ mensaje: "Plan de nutrición actualizado correctamente" });
   } catch (err) {
-    res.status(500).json({ error: "No se pudo actualizar el plan" });
+    console.error("Error al modificar plan de nutrición:", err);
+    res.status(500).json({ error: "No se pudo modificar el plan" });
   } finally {
     if (connection) await connection.close();
   }
@@ -978,7 +1025,7 @@ app.get("/dashboard/Usuarios", async (req, res) => {
   try {
     connection = await oracledb.getConnection(dbConfig);
     const result = await connection.execute(
-      `SELECT rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, id_rol FROM Usuarios`,
+      `SELECT rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, telefono, id_rol FROM Usuarios`,
       [],
       { outFormat: oracledb.OUT_FORMAT_OBJECT }
     );
@@ -1004,6 +1051,7 @@ app.put('/api/Usuarios/:rut', async (req, res) => {
     segundo_apellido,
     direccion,
     correo,
+    telefono,
     id_rol
   } = req.body;
   let connection;
@@ -1019,6 +1067,7 @@ app.put('/api/Usuarios/:rut', async (req, res) => {
         SEGUNDO_APELLIDO = :segundo_apellido,
         DIRECCION = :direccion,
         CORREO = :correo,
+        TELEFONO = :telefono,
         ID_ROL = :id_rol
       WHERE RUT = :rut`,
       {
@@ -1029,6 +1078,7 @@ app.put('/api/Usuarios/:rut', async (req, res) => {
         segundo_apellido,
         direccion,
         correo,
+        telefono,
         id_rol: Number(id_rol),
         rut
       },
@@ -1543,25 +1593,34 @@ app.get("/auth/google/callback",
       let rut, primer_nombre, id_rol;
 
       if (!usuario) {
-        // Si no existe, crea uno (registro automático)
-        rut = Date.now().toString().slice(-8); // Rut temporal único
+        // Si no existe, crea uno SIN rut ni dvrut
         primer_nombre = nombre.split(" ")[0];
         id_rol = 1; // Cliente por defecto
 
+        const rutTemporal = 12345678; // Un número único temporal
+
         await connection.execute(
-          `INSERT INTO Usuarios (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL)
-           VALUES (:rut, :dvrut, :primer_nombre, '', '', '', '', :correo, '', :id_rol)`,
+          `INSERT INTO Usuarios 
+    (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL)
+   VALUES 
+    (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol)`,
           {
-            rut,
-            dvrut: "0",
-            primer_nombre,
-            correo,
-            id_rol
+            rut: 12345678,
+            dvrut: 0,
+            primer_nombre: primer_nombre,
+            segundo_nombre: null,         // Usa null, no ""
+            primer_apellido: null,
+            segundo_apellido: null,
+            direccion: null,
+            correo: correo,
+            pass: "",                     // Si PASS es NOT NULL, usa un string seguro
+            id_rol: 1
           },
           { autoCommit: true }
         );
+        rut = rutTemporal; // Para que el frontend detecte que falta completar
       } else {
-        rut = usuario.RUT || usuario.rut;
+        rut = usuario.RUT || usuario.rut || "";
         primer_nombre = usuario.PRIMER_NOMBRE || usuario.primer_nombre;
         id_rol = usuario.ID_ROL || usuario.id_rol;
       }
@@ -1585,6 +1644,8 @@ app.get("/auth/google/callback",
     }
   }
 );
+
+
 
 /*FIN CODIGO */
 app.get("/", (req, res) => {

@@ -1,9 +1,59 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { useNavigate } from "react-router-dom";
-
 import Imagelogo from '../../assets/icono-logo.png';
-const ITEMS_PER_PAGE = 2;
+
+const ITEMS_PER_PAGE = 5; // Aumentado de 2 a 5 items por página
+
+// Formatters
+const formatDate = (dateString) => {
+    if (!dateString) return "No disponible";
+    try {
+        const date = new Date(dateString);
+        return date.toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+    } catch (e) {
+        return dateString;
+    }
+};
+
+const formatCurrency = (amount) => {
+    if (!amount) return "$0";
+    return new Intl.NumberFormat('es-CL', {
+        style: 'currency',
+        currency: 'CLP'
+    }).format(amount);
+};
+
+// Estados de pedido con sus colores
+const ESTADO_PEDIDO = {
+    'PENDIENTE': { color: '#FFA500', bg: '#FFF3E0' },
+    'EN PROCESO': { color: '#2196F3', bg: '#E3F2FD' },
+    'COMPLETADO': { color: '#4CAF50', bg: '#E8F5E9' },
+    'CANCELADO': { color: '#F44336', bg: '#FFEBEE' }
+};
+
+function LoadingSpinner() {
+    return (
+        <div className="d-flex justify-content-center align-items-center p-4">
+            <div className="spinner-border text-primary" role="status">
+                <span className="visually-hidden">Cargando...</span>
+            </div>
+        </div>
+    );
+}
+
+function EmptyState({ message, icon }) {
+    return (
+        <div className="text-center p-4 text-muted">
+            <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>{icon}</div>
+            <p>{message}</p>
+        </div>
+    );
+}
 
 function Vermas() {
     const [user, setUser] = useState(null);
@@ -65,7 +115,11 @@ function Vermas() {
     // Paginación
     const paginar = (data, page) => data.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE);
 
-    if (loading) return <div>Cargando...</div>;
+    if (loading) return (
+        <div className="vermas-vertical-container">
+            <LoadingSpinner />
+        </div>
+    );
 
     return (
         <div>
@@ -151,195 +205,309 @@ function Vermas() {
                 </nav>
             </div>
             <div className="vermas-vertical-container">
-                <h2 className="vermas-title">Mas opciones</h2>
+                <h2 className="vermas-title">Más opciones</h2>
                 <div className="vermas-section">
                     <SectionCard title="Historial de Compras" icon="🛒">
-                        <ul className="vermas-list">
-                            {paginar(historialFiltrado, historialPage).map((item, index) => (
-                                <li key={index} className="vermas-list-item">
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">Fecha:</span>
-                                        <span>{item.fecha_transaccion}</span>
-                                    </div>
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">Método:</span>
-                                        <span>{item.metodo_de_pago}</span>
-                                    </div>
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">Monto:</span>
-                                        <span>${item.monto}</span>
-                                    </div>
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">Descripción:</span>
-                                        <span>{item.descripcion_transaccion}</span>
-                                    </div>
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">N° Orden:</span>
-                                        <span>{item.n_orden}</span>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                        <Paginador
-                            total={historialFiltrado.length}
-                            page={historialPage}
-                            setPage={setHistorialPage}
-                        />
+                        {historialFiltrado.length === 0 ? (
+                            <EmptyState 
+                                icon="🛍️" 
+                                message="Aún no tienes compras registradas" 
+                            />
+                        ) : (
+                            <>
+                                <ul className="vermas-list">
+                                    {paginar(historialFiltrado, historialPage).map((item, index) => (
+                                        <li key={index} className="vermas-list-item">
+                                            <div className="vermas-item-row">
+                                                <span className="vermas-item-label">Fecha:</span>
+                                                <span>{formatDate(item.fecha_transaccion)}</span>
+                                            </div>
+                                            <div className="vermas-item-row">
+                                                <span className="vermas-item-label">Método:</span>
+                                                <span className="badge bg-info text-dark">{item.metodo_de_pago}</span>
+                                            </div>
+                                            <div className="vermas-item-row">
+                                                <span className="vermas-item-label">Monto:</span>
+                                                <span className="text-success fw-bold">{formatCurrency(item.monto)}</span>
+                                            </div>
+                                            <div className="vermas-item-row">
+                                                <span className="vermas-item-label">Descripción:</span>
+                                                <span className="text-wrap">{item.descripcion_transaccion}</span>
+                                            </div>
+                                            <div className="vermas-item-row">
+                                                <span className="vermas-item-label">N° Orden:</span>
+                                                <span className="badge bg-secondary">{item.n_orden}</span>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <Paginador
+                                    total={historialFiltrado.length}
+                                    page={historialPage}
+                                    setPage={setHistorialPage}
+                                />
+                            </>
+                        )}
                     </SectionCard>
+
                     <SectionCard title="Suscripciones" icon="📦">
-                        <ul className="vermas-list">
-                            {paginar(suscripcionesFiltradas, suscripcionesPage).map((suscripcion, index) => (
-                                <li key={index} className="vermas-list-item">
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">Plan:</span>
-                                        <span>{suscripcion.ID_PLAN || suscripcion.id_plan}</span>
-                                    </div>
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">Nombre:</span>
-                                        <span>{suscripcion.NOMBRE || suscripcion.nombre}</span>
-                                    </div>
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">Inicio:</span>
-                                        <span>{(suscripcion.FECHAINICIO || suscripcion.fechainicio || "").substring(0, 10)}</span>
-                                    </div>
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">Fin:</span>
-                                        <span>{(suscripcion.FECHAFIN || suscripcion.fechafin || "").substring(0, 10)}</span>
-                                    </div>
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">Descripción:</span>
-                                        <span>{suscripcion.DESCRIPCION || suscripcion.descripcion}</span>
-                                    </div>
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">Tipo:</span>
-                                        <span>{suscripcion.TIPO_PLAN || suscripcion.tipo_plan}</span>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                        <Paginador
-                            total={suscripcionesFiltradas.length}
-                            page={suscripcionesPage}
-                            setPage={setSuscripcionesPage}
-                        />
+                        {suscripcionesFiltradas.length === 0 ? (
+                            <EmptyState 
+                                icon="📅" 
+                                message="No tienes suscripciones activas" 
+                            />
+                        ) : (
+                            <>
+                                <ul className="vermas-list">
+                                    {paginar(suscripcionesFiltradas, suscripcionesPage).map((suscripcion, index) => (
+                                        <li key={index} className="vermas-list-item">
+                                            <div className="vermas-item-row">
+                                                <span className="vermas-item-label">Plan:</span>
+                                                <span className="badge bg-primary">#{suscripcion.ID_PLAN || suscripcion.id_plan}</span>
+                                            </div>
+                                            <div className="vermas-item-row">
+                                                <span className="vermas-item-label">Nombre:</span>
+                                                <span className="fw-bold">{suscripcion.NOMBRE || suscripcion.nombre}</span>
+                                            </div>
+                                            <div className="vermas-item-row">
+                                                <span className="vermas-item-label">Vigencia:</span>
+                                                <div className="d-flex flex-column align-items-end">
+                                                    <small className="text-muted">Desde: {formatDate(suscripcion.FECHAINICIO || suscripcion.fechainicio)}</small>
+                                                    <small className="text-muted">Hasta: {formatDate(suscripcion.FECHAFIN || suscripcion.fechafin)}</small>
+                                                </div>
+                                            </div>
+                                            <div className="vermas-item-row">
+                                                <span className="vermas-item-label">Tipo:</span>
+                                                <span className="badge bg-info">{suscripcion.TIPO_PLAN || suscripcion.tipo_plan}</span>
+                                            </div>
+                                            {(suscripcion.DESCRIPCION || suscripcion.descripcion) && (
+                                                <div className="vermas-item-row mt-2">
+                                                    <small className="text-muted fst-italic w-100 text-wrap">
+                                                        {suscripcion.DESCRIPCION || suscripcion.descripcion}
+                                                    </small>
+                                                </div>
+                                            )}
+                                        </li>
+                                    ))}
+                                </ul>
+                                <Paginador
+                                    total={suscripcionesFiltradas.length}
+                                    page={suscripcionesPage}
+                                    setPage={setSuscripcionesPage}
+                                />
+                            </>
+                        )}
                     </SectionCard>
+
                     <SectionCard title="Seguimiento de Pedidos" icon="🚚">
                         {user && (user.id_rol === 5 || user.id_rol === 6) && (
-                        <button
-                            className="btn btn-primary mb-3"
-                            onClick={() => navigate("/seguimiento")}
-                            style={{ width: "100%" }}
-                        >
-                            Buscar pedido
-                        </button>
+                            <button
+                                className="btn btn-primary mb-3"
+                                onClick={() => navigate("/seguimiento")}
+                                style={{ width: "100%" }}
+                            >
+                                Buscar pedido
+                            </button>
                         )}
-                        <ul className="vermas-list">
-                            {paginar(seguimientoFiltrado, seguimientoPage).map((pedido, index) => (
-                                <li key={index} className="vermas-list-item">
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">N° Orden:</span>
-                                        <span>{pedido.NUMERO_ORDEN}</span>
-                                    </div>
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">Estado:</span>
-                                        <span>{pedido.ESTADO}</span>
-                                    </div>
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">Total:</span>
-                                        <span>${pedido.TOTAL}</span>
-                                    </div>
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">Fecha:</span>
-                                        <span>{pedido.FECHA_PEDIDO}</span>
-                                    </div>
-                                    <div className="vermas-item-row">
-                                        <span className="vermas-item-label">Dirección:</span>
-                                        <span>{pedido.DIRECCION}</span>
-                                    </div>
-                                </li>
-                            ))}
-                        </ul>
-                        <Paginador
-                            total={seguimientoFiltrado.length}
-                            page={seguimientoPage}
-                            setPage={setSeguimientoPage}
-                        />
+                        {seguimientoFiltrado.length === 0 ? (
+                            <EmptyState 
+                                icon="📦" 
+                                message="No hay pedidos para mostrar" 
+                            />
+                        ) : (
+                            <>
+                                <ul className="vermas-list">
+                                    {paginar(seguimientoFiltrado, seguimientoPage).map((pedido, index) => (
+                                        <li key={index} className="vermas-list-item">
+                                            <div className="vermas-item-row">
+                                                <span className="vermas-item-label">N° Orden:</span>
+                                                <span className="badge bg-secondary">#{pedido.NUMERO_ORDEN}</span>
+                                            </div>
+                                            <div className="vermas-item-row">
+                                                <span className="vermas-item-label">Estado:</span>
+                                                <span className="badge" style={{
+                                                    backgroundColor: ESTADO_PEDIDO[pedido.ESTADO]?.bg || '#f0f0f0',
+                                                    color: ESTADO_PEDIDO[pedido.ESTADO]?.color || '#666'
+                                                }}>
+                                                    {pedido.ESTADO}
+                                                </span>
+                                            </div>
+                                            <div className="vermas-item-row">
+                                                <span className="vermas-item-label">Total:</span>
+                                                <span className="text-success fw-bold">{formatCurrency(pedido.TOTAL)}</span>
+                                            </div>
+                                            <div className="vermas-item-row">
+                                                <span className="vermas-item-label">Fecha:</span>
+                                                <span>{formatDate(pedido.FECHA_PEDIDO)}</span>
+                                            </div>
+                                            <div className="vermas-item-row">
+                                                <span className="vermas-item-label">Dirección:</span>
+                                                <span className="text-wrap">{pedido.DIRECCION || 'No disponible'}</span>
+                                            </div>
+                                        </li>
+                                    ))}
+                                </ul>
+                                <Paginador
+                                    total={seguimientoFiltrado.length}
+                                    page={seguimientoPage}
+                                    setPage={setSeguimientoPage}
+                                />
+                            </>
+                        )}
                     </SectionCard>
                 </div>
                 <style>{`
-                .vermas-vertical-container {
-                    max-width: 600px;
-                    margin: 40px auto;
-                    padding: 24px;
-                    background: #fff;
-                    border-radius: 16px;
-                    box-shadow: 0 4px 24px rgba(0,0,0,0.08);
-                }
-                .vermas-title {
-                    text-align: center;
-                    font-weight: 700;
-                    margin-bottom: 32px;
-                    color: #2d3748;
-                }
-                .vermas-section {
-                    display: flex;
-                    flex-direction: column;
-                    gap: 32px;
-                }
-                .vermas-card {
-                    background: #f7fafc;
-                    border-radius: 12px;
-                    padding: 20px 24px;
-                    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-                    margin-bottom: 0;
-                }
-                .vermas-card-title {
-                    font-size: 1.2rem;
-                    font-weight: 600;
-                    margin-bottom: 16px;
-                    display: flex;
-                    align-items: center;
-                    gap: 8px;
-                    color: #3182ce;
-                }
-                .vermas-list {
-                    list-style: none;
-                    padding: 0;
-                    margin: 0;
-                }
-                .vermas-list-item {
-                    background: #fff;
-                    border-radius: 8px;
-                    margin-bottom: 12px;
-                    padding: 16px;
-                    box-shadow: 0 1px 4px rgba(0,0,0,0.03);
-                    transition: box-shadow 0.2s;
-                }
-                .vermas-list-item:last-child {
-                    margin-bottom: 0;
-                }
-                .vermas-list-item:hover {
-                    box-shadow: 0 4px 12px rgba(49,130,206,0.08);
-                }
-                .vermas-item-row {
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 4px;
-                    font-size: 0.97rem;
-                }
-                .vermas-item-label {
-                    font-weight: 500;
-                    color: #4a5568;
-                }
-                @media (max-width: 700px) {
+                    @keyframes fadeIn {
+                        from { opacity: 0; transform: translateY(10px); }
+                        to { opacity: 1; transform: translateY(0); }
+                    }
+
                     .vermas-vertical-container {
-                        padding: 10px;
+                        max-width: 800px;
+                        margin: 40px auto;
+                        padding: 24px;
+                        background: #fff;
+                        border-radius: 16px;
+                        box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+                        animation: fadeIn 0.5s ease-out;
                     }
+
+                    .vermas-title {
+                        text-align: center;
+                        font-weight: 700;
+                        margin-bottom: 32px;
+                        color: #2d3748;
+                        font-size: 2rem;
+                        text-transform: uppercase;
+                        letter-spacing: 1px;
+                    }
+
+                    .vermas-section {
+                        display: flex;
+                        flex-direction: column;
+                        gap: 32px;
+                    }
+
                     .vermas-card {
-                        padding: 12px 8px;
+                        background: #f7fafc;
+                        border-radius: 12px;
+                        padding: 24px;
+                        box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+                        margin-bottom: 0;
+                        transition: transform 0.2s, box-shadow 0.2s;
                     }
-                }
-            `}</style>
+
+                    .vermas-card:hover {
+                        transform: translateY(-2px);
+                        box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+                    }
+
+                    .vermas-card-title {
+                        font-size: 1.4rem;
+                        font-weight: 600;
+                        margin-bottom: 20px;
+                        display: flex;
+                        align-items: center;
+                        gap: 12px;
+                        color: #3182ce;
+                        border-bottom: 2px solid #e2e8f0;
+                        padding-bottom: 12px;
+                    }
+
+                    .vermas-list {
+                        list-style: none;
+                        padding: 0;
+                        margin: 0;
+                    }
+
+                    .vermas-list-item {
+                        background: #fff;
+                        border-radius: 10px;
+                        margin-bottom: 16px;
+                        padding: 20px;
+                        box-shadow: 0 1px 4px rgba(0,0,0,0.03);
+                        transition: all 0.2s;
+                        animation: fadeIn 0.5s ease-out;
+                        border: 1px solid #e2e8f0;
+                    }
+
+                    .vermas-list-item:last-child {
+                        margin-bottom: 0;
+                    }
+
+                    .vermas-list-item:hover {
+                        box-shadow: 0 4px 12px rgba(49,130,206,0.08);
+                        border-color: #3182ce;
+                    }
+
+                    .vermas-item-row {
+                        display: flex;
+                        justify-content: space-between;
+                        align-items: center;
+                        margin-bottom: 8px;
+                        font-size: 0.97rem;
+                    }
+
+                    .vermas-item-row:last-child {
+                        margin-bottom: 0;
+                    }
+
+                    .vermas-item-label {
+                        font-weight: 500;
+                        color: #4a5568;
+                        min-width: 100px;
+                    }
+
+                    .pagination {
+                        margin-top: 20px;
+                    }
+
+                    .page-link {
+                        color: #3182ce;
+                        border-color: #e2e8f0;
+                        transition: all 0.2s;
+                    }
+
+                    .page-link:hover {
+                        background-color: #ebf8ff;
+                        border-color: #3182ce;
+                        color: #2c5282;
+                    }
+
+                    .page-item.active .page-link {
+                        background-color: #3182ce;
+                        border-color: #3182ce;
+                    }
+
+                    @media (max-width: 700px) {
+                        .vermas-vertical-container {
+                            margin: 20px 10px;
+                            padding: 16px;
+                        }
+
+                        .vermas-card {
+                            padding: 16px;
+                        }
+
+                        .vermas-item-row {
+                            flex-direction: column;
+                            align-items: flex-start;
+                            gap: 4px;
+                        }
+
+                        .vermas-item-row > span:last-child {
+                            width: 100%;
+                        }
+
+                        .vermas-title {
+                            font-size: 1.5rem;
+                        }
+
+                        .vermas-card-title {
+                            font-size: 1.2rem;
+                        }
+                    }
+                `}</style>
             </div>
         </div>
     );
