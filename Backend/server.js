@@ -330,45 +330,44 @@ app.get("/pedidos/:numero_orden", async (req, res) => {
 app.post("/register", async (req, res) => {
   const { rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, pass } = req.body;
   let connection;
+  
   try {
     connection = await oracledb.getConnection(dbConfig);
     const hashedPassword = await bcrypt.hash(pass, 10);
+    
     await connection.execute(
       `INSERT INTO Usuarios 
-    (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL) 
-   VALUES 
-    (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol`,
-      {
-        rut,
-        dvrut,
-        primer_nombre,
-        segundo_nombre,
-        primer_apellido,
-        segundo_apellido,
-        direccion,
-        correo,
-        pass: hashedPassword,
-        id_rol: 1,
-      },
+        (RUT, DVRUT, PRIMER_NOMBRE, SEGUNDO_NOMBRE, PRIMER_APELLIDO, SEGUNDO_APELLIDO, DIRECCION, CORREO, PASS, ID_ROL) 
+       VALUES 
+        (:rut, :dvrut, :primer_nombre, :segundo_nombre, :primer_apellido, :segundo_apellido, :direccion, :correo, :pass, :id_rol)`,
+      [rut, dvrut, primer_nombre, segundo_nombre, primer_apellido, segundo_apellido, direccion, correo, hashedPassword, 1],
       { autoCommit: true }
     );
 
-    res.status(201).json({ mensaje: "Usuario registrado exitosamente", usuario: { rut, primer_nombre, correo, id_rol: 1 } });
+    res.status(201).json({ 
+      mensaje: "Usuario registrado exitosamente", 
+      usuario: { rut, primer_nombre, correo, id_rol: 1 } 
+    });
+
   } catch (err) {
-    // ...existing code...
-  } finally {
-    console.error(err);
+    console.error("Error al registrar usuario:", err);
+    
     if (err.errorNum === 1) { // ORA-00001: unique constraint violated
       res.status(409).json({ error: "El Usuario ya existe" });
     } else {
-      res.status(500).send("Error al registrar Usuario");
+      res.status(500).json({ error: "Error al registrar Usuario" });
     }
+    
+  } finally {
     if (connection) {
-      await connection.close();
+      try {
+        await connection.close();
+      } catch (err) {
+        console.error("Error al cerrar la conexión:", err);
+      }
     }
   }
 });
-
 //Inicio de sesión
 app.post("/login", async (req, res) => {
   const { correo, pass } = req.body;

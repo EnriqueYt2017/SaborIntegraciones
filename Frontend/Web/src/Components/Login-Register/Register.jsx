@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import Imagen from '../../assets/loginimage.jpg';
@@ -17,25 +17,74 @@ function Register() {
         if (token) {
             navigate("/home"); // ✅ Redirige si el usuario ya está autenticado
         }
-    }, []);
+    }, [navigate]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setError(null);
+
+        // Validación básica
+        if (!rut || !dvrut || !primer_nombre || !correo || !pass) {
+            setError("Todos los campos son obligatorios");
+            return;
+        }
+
+        // Validar formato de RUT (números solamente)
+        if (!/^\d+$/.test(rut)) {
+            setError("El RUT debe contener solo números");
+            return;
+        }
+
+        // Validar formato de correo
+        if (!/\S+@\S+\.\S+/.test(correo)) {
+            setError("Por favor ingrese un correo electrónico válido");
+            return;
+        }
+
+        // Validar longitud mínima de contraseña
+        if (pass.length < 6) {
+            setError("La contraseña debe tener al menos 6 caracteres");
+            return;
+        }
+
         try {
-            const response = await axios.post("http://localhost:5000/register", {
-                rut,
-                dvrut,
-                primer_nombre,
-                correo,
-                pass,
+            const userData = {
+                rut: rut.trim(),
+                dvrut: dvrut.trim(),
+                primer_nombre: primer_nombre.trim(),
+                correo: correo.trim().toLowerCase(),
+                pass: pass
+            };
+
+            console.log("Enviando datos:", userData); // Para depuración
+
+            const response = await axios.post("http://localhost:5000/register", userData, {
+                headers: {
+                    'Content-Type': 'application/json'
+                }
             });
-            alert(response.data.mensaje);
-            navigate("/login");
-        } catch (err) {
-            if (err.response && err.response.data && err.response.data.error) {
-                setError(err.response.data.error);
+
+            if (response.data && response.data.mensaje) {
+                alert(response.data.mensaje);
+                navigate("/login");
             } else {
-                setError("Error al registrar. Intente nuevamente.");
+                setError("Respuesta del servidor inválida");
+            }
+        } catch (err) {
+            console.error("Error completo:", err); // Para depuración
+            
+            if (err.response) {
+                // Error con respuesta del servidor
+                const serverError = err.response.data && err.response.data.error 
+                    ? err.response.data.error 
+                    : "Error en el servidor: " + err.response.status;
+                setError(serverError);
+            } else if (err.request) {
+                // Error de conexión
+                setError("No se pudo conectar con el servidor. Por favor, verifique su conexión.");
+            } else {
+                // Otro tipo de error
+                setError("Error al registrar: " + err.message);
             }
         }
     };

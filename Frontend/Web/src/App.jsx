@@ -20,6 +20,7 @@ import Entrenamiento from "./Components/Planes/Entrenamiento"
 import Nutricion from "./Components/Planes/Nutricion";
 // FOROS
 import Foro_entrenamiento from "./Components/Planes/Foro_entrenamiento";
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css"></link>
 
 const App = () => {
 
