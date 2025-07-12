@@ -1,7 +1,32 @@
 /* eslint-disable no-unused-vars */
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    LineElement,
+    PointElement,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement,
+} from 'chart.js';
+import { Bar, Line, Doughnut } from 'react-chartjs-2';
+
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    BarElement,
+    LineElement,
+    PointElement,
+    Title,
+    Tooltip,
+    Legend,
+    ArcElement
+);
 
 const sections = [
     { key: "Inicio", label: "Inicio" },
@@ -34,6 +59,13 @@ function Dashboard() {
     const [preview, setPreview] = useState(null);
     const [editandoProducto, setEditandoProducto] = useState(false);
 
+    // ESTADÍSTICAS
+    const [estadisticasVentas, setEstadisticasVentas] = useState({});
+    const [estadisticasProductos, setEstadisticasProductos] = useState({});
+    const [estadisticasUsuarios, setEstadisticasUsuarios] = useState({});
+    const [estadisticasPedidos, setEstadisticasPedidos] = useState({});
+    const [cargandoEstadisticas, setCargandoEstadisticas] = useState(false);
+
     const fileInputRef = useRef();
 
     const validarFormulario = () => {
@@ -47,10 +79,10 @@ function Dashboard() {
 
     const [alerta, setAlerta] = useState({ visible: false, mensaje: "", tipo: "info" });
 
-    const mostrarAlerta = (mensaje, tipo = "info") => {
+    const mostrarAlerta = useCallback((mensaje, tipo = "info") => {
         setAlerta({ visible: true, mensaje, tipo });
-        setTimeout(() => setAlerta({ ...alerta, visible: false }), 3000);
-    };
+        setTimeout(() => setAlerta(prev => ({ ...prev, visible: false })), 3000);
+    }, []);
 
     // Obtener usuarios
     const obtenerUsuarios = async () => {
@@ -71,6 +103,29 @@ function Dashboard() {
             console.error("Error al obtener productos:", err);
         }
     };
+
+    // Obtener estadísticas
+    const obtenerEstadisticas = useCallback(async () => {
+        setCargandoEstadisticas(true);
+        try {
+            const [ventasRes, productosRes, usuariosRes, pedidosRes] = await Promise.all([
+                axios.get("http://localhost:5000/api/estadisticas/ventas"),
+                axios.get("http://localhost:5000/api/estadisticas/productos"),
+                axios.get("http://localhost:5000/api/estadisticas/usuarios"),
+                axios.get("http://localhost:5000/api/estadisticas/pedidos")
+            ]);
+            
+            setEstadisticasVentas(ventasRes.data);
+            setEstadisticasProductos(productosRes.data);
+            setEstadisticasUsuarios(usuariosRes.data);
+            setEstadisticasPedidos(pedidosRes.data);
+        } catch (err) {
+            console.error("Error al obtener estadísticas:", err);
+            mostrarAlerta("Error al cargar estadísticas", "error");
+        } finally {
+            setCargandoEstadisticas(false);
+        }
+    }, [mostrarAlerta]);
 
     // AGREGAR O ACTUALIZAR PRODUCTO
     const handleSubmit = async (e) => {
@@ -250,7 +305,8 @@ function Dashboard() {
             .then(response => setClientes(response.data))
             .catch(error => console.error("Error al obtener clientes:", error));
         obtenerProductos();
-    }, []);
+        obtenerEstadisticas();
+    }, [obtenerEstadisticas]);
 
     // Si no tiene permiso para dashboard, redirige
     useEffect(() => {
@@ -649,14 +705,14 @@ function Dashboard() {
                         <div
                             className="epic-gradient-border"
                             style={{
-                                background: "linear-gradient(120deg, #f8fafc 80%, #ffcc3320 100%)",
+                                background: activeSection === "Inicio" ? "#f8fafc" : "linear-gradient(120deg, #f8fafc 80%, #ffcc3320 100%)",
                                 borderRadius: 22,
                                 boxShadow: "0 4px 32px 0 rgba(0,0,0,0.09)",
-                                padding: 44,
-                                minHeight: 260,
+                                padding: activeSection === "Inicio" ? 20 : 44,
+                                minHeight: activeSection === "Inicio" ? "auto" : 260,
                                 display: "flex",
                                 flexDirection: "column",
-                                justifyContent: "center",
+                                justifyContent: activeSection === "Inicio" ? "flex-start" : "center",
                                 alignItems: "flex-start",
                                 width: "100%",
                                 position: "relative",
@@ -679,16 +735,299 @@ function Dashboard() {
                                 {activeSection === "Api" && "🔗"}
                             </span>
                             {activeSection === "Inicio" && (
-                                <>
-                                    <p style={{ fontSize: 22, color: "#444", marginBottom: 18, fontWeight: 500 }}>
-                                        ¡Gestiona tu negocio con <span style={{ color: "#ffb347", fontWeight: 700 }}>estilo</span>! Selecciona una sección en el menú lateral.
-                                    </p>
-                                    <ul style={{ fontSize: 18, color: "#666", marginLeft: 28, lineHeight: 2 }}>
-                                        <li>👤 <b>Usuarios</b>: administra tu base de usuarios.</li>
-                                        <li>🛍️ <b>Productos</b>: controla tu inventario.</li>
-                                        <li>🔗 <b>API</b>: consulta clientes externos.</li>
-                                    </ul>
-                                </>
+                                <div style={{ width: "100%", padding: "0 20px" }}>
+                                    {cargandoEstadisticas ? (
+                                        <div style={{ textAlign: "center", padding: "40px" }}>
+                                            <p style={{ fontSize: 18, color: "#666" }}>Cargando estadísticas...</p>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            {/* Tarjetas de resumen */}
+                                            <div style={{ 
+                                                display: "grid", 
+                                                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", 
+                                                gap: "20px", 
+                                                marginBottom: "30px" 
+                                            }}>
+                                                <div style={{
+                                                    background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                                    borderRadius: "16px",
+                                                    padding: "25px",
+                                                    color: "white",
+                                                    textAlign: "center",
+                                                    boxShadow: "0 8px 25px rgba(102, 126, 234, 0.25)"
+                                                }}>
+                                                    <h3 style={{ margin: "0 0 10px 0", fontSize: "16px", opacity: 0.9 }}>Total Ventas</h3>
+                                                    <p style={{ margin: "0", fontSize: "32px", fontWeight: "bold" }}>
+                                                        {estadisticasVentas.totalVentas || 0}
+                                                    </p>
+                                                    <p style={{ margin: "5px 0 0 0", fontSize: "14px", opacity: 0.8 }}>
+                                                        ${(estadisticasVentas.montoTotal || 0).toLocaleString()}
+                                                    </p>
+                                                </div>
+
+                                                <div style={{
+                                                    background: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+                                                    borderRadius: "16px",
+                                                    padding: "25px",
+                                                    color: "white",
+                                                    textAlign: "center",
+                                                    boxShadow: "0 8px 25px rgba(240, 147, 251, 0.25)"
+                                                }}>
+                                                    <h3 style={{ margin: "0 0 10px 0", fontSize: "16px", opacity: 0.9 }}>Total Productos</h3>
+                                                    <p style={{ margin: "0", fontSize: "32px", fontWeight: "bold" }}>
+                                                        {estadisticasProductos.totalProductos || 0}
+                                                    </p>
+                                                    <p style={{ margin: "5px 0 0 0", fontSize: "14px", opacity: 0.8 }}>
+                                                        {(estadisticasProductos.productosBajoStock || []).length} bajo stock
+                                                    </p>
+                                                </div>
+
+                                                <div style={{
+                                                    background: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+                                                    borderRadius: "16px",
+                                                    padding: "25px",
+                                                    color: "white",
+                                                    textAlign: "center",
+                                                    boxShadow: "0 8px 25px rgba(79, 172, 254, 0.25)"
+                                                }}>
+                                                    <h3 style={{ margin: "0 0 10px 0", fontSize: "16px", opacity: 0.9 }}>Total Usuarios</h3>
+                                                    <p style={{ margin: "0", fontSize: "32px", fontWeight: "bold" }}>
+                                                        {estadisticasUsuarios.totalUsuarios || 0}
+                                                    </p>
+                                                    <p style={{ margin: "5px 0 0 0", fontSize: "14px", opacity: 0.8 }}>
+                                                        {estadisticasUsuarios.nuevosUsuarios || 0} nuevos este mes
+                                                    </p>
+                                                </div>
+
+                                                <div style={{
+                                                    background: "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+                                                    borderRadius: "16px",
+                                                    padding: "25px",
+                                                    color: "white",
+                                                    textAlign: "center",
+                                                    boxShadow: "0 8px 25px rgba(250, 112, 154, 0.25)"
+                                                }}>
+                                                    <h3 style={{ margin: "0 0 10px 0", fontSize: "16px", opacity: 0.9 }}>Pedidos Pendientes</h3>
+                                                    <p style={{ margin: "0", fontSize: "32px", fontWeight: "bold" }}>
+                                                        {(estadisticasPedidos.pedidosPorEstado || []).find(p => p.estado === 'Pendiente')?.cantidad || 0}
+                                                    </p>
+                                                    <p style={{ margin: "5px 0 0 0", fontSize: "14px", opacity: 0.8 }}>
+                                                        En proceso
+                                                    </p>
+                                                </div>
+                                            </div>
+
+                                            {/* Gráficos */}
+                                            <div style={{ 
+                                                display: "grid", 
+                                                gridTemplateColumns: "2fr 1fr", 
+                                                gap: "25px", 
+                                                marginBottom: "30px" 
+                                            }}>
+                                                {/* Gráfico de ventas por mes */}
+                                                <div style={{
+                                                    background: "white",
+                                                    borderRadius: "16px",
+                                                    padding: "25px",
+                                                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)"
+                                                }}>
+                                                    <h3 style={{ margin: "0 0 20px 0", color: "#333", fontSize: "18px" }}>Ventas por Mes</h3>
+                                                    {estadisticasVentas.ventasPorMes && estadisticasVentas.ventasPorMes.length > 0 ? (
+                                                        <Bar
+                                                            data={{
+                                                                labels: estadisticasVentas.ventasPorMes.map(v => v.mes),
+                                                                datasets: [{
+                                                                    label: 'Cantidad de Ventas',
+                                                                    data: estadisticasVentas.ventasPorMes.map(v => v.cantidadVentas),
+                                                                    backgroundColor: 'rgba(102, 126, 234, 0.8)',
+                                                                    borderColor: 'rgba(102, 126, 234, 1)',
+                                                                    borderWidth: 1,
+                                                                    borderRadius: 8,
+                                                                }]
+                                                            }}
+                                                            options={{
+                                                                responsive: true,
+                                                                plugins: {
+                                                                    legend: {
+                                                                        display: false
+                                                                    }
+                                                                },
+                                                                scales: {
+                                                                    y: {
+                                                                        beginAtZero: true,
+                                                                        grid: {
+                                                                            color: 'rgba(0,0,0,0.05)'
+                                                                        }
+                                                                    },
+                                                                    x: {
+                                                                        grid: {
+                                                                            display: false
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }}
+                                                        />
+                                                    ) : (
+                                                        <p style={{ textAlign: "center", color: "#666", padding: "40px 0" }}>
+                                                            No hay datos de ventas disponibles
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                {/* Gráfico de estados de pedidos */}
+                                                <div style={{
+                                                    background: "white",
+                                                    borderRadius: "16px",
+                                                    padding: "25px",
+                                                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)"
+                                                }}>
+                                                    <h3 style={{ margin: "0 0 20px 0", color: "#333", fontSize: "18px" }}>Estados de Pedidos</h3>
+                                                    {estadisticasPedidos.pedidosPorEstado && estadisticasPedidos.pedidosPorEstado.length > 0 ? (
+                                                        <Doughnut
+                                                            data={{
+                                                                labels: estadisticasPedidos.pedidosPorEstado.map(p => p.estado),
+                                                                datasets: [{
+                                                                    data: estadisticasPedidos.pedidosPorEstado.map(p => p.cantidad),
+                                                                    backgroundColor: [
+                                                                        '#667eea',
+                                                                        '#f093fb',
+                                                                        '#4facfe',
+                                                                        '#fa709a',
+                                                                        '#ffeaa7',
+                                                                        '#fd79a8'
+                                                                    ],
+                                                                    borderWidth: 0
+                                                                }]
+                                                            }}
+                                                            options={{
+                                                                responsive: true,
+                                                                maintainAspectRatio: false,
+                                                                plugins: {
+                                                                    legend: {
+                                                                        position: 'bottom',
+                                                                        labels: {
+                                                                            padding: 15,
+                                                                            usePointStyle: true
+                                                                        }
+                                                                    }
+                                                                }
+                                                            }}
+                                                            height={200}
+                                                        />
+                                                    ) : (
+                                                        <p style={{ textAlign: "center", color: "#666", padding: "40px 0" }}>
+                                                            No hay datos de pedidos disponibles
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Tablas de datos */}
+                                            <div style={{ 
+                                                display: "grid", 
+                                                gridTemplateColumns: "1fr 1fr", 
+                                                gap: "25px" 
+                                            }}>
+                                                {/* Top usuarios */}
+                                                <div style={{
+                                                    background: "white",
+                                                    borderRadius: "16px",
+                                                    padding: "25px",
+                                                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)"
+                                                }}>
+                                                    <h3 style={{ margin: "0 0 20px 0", color: "#333", fontSize: "18px" }}>Top Usuarios (Más Compras)</h3>
+                                                    {estadisticasUsuarios.usuariosMasCompras && estadisticasUsuarios.usuariosMasCompras.length > 0 ? (
+                                                        <div>
+                                                            {estadisticasUsuarios.usuariosMasCompras.map((usuario, index) => (
+                                                                <div key={index} style={{
+                                                                    display: "flex",
+                                                                    justifyContent: "space-between",
+                                                                    alignItems: "center",
+                                                                    padding: "12px 0",
+                                                                    borderBottom: index < estadisticasUsuarios.usuariosMasCompras.length - 1 ? "1px solid #f0f0f0" : "none"
+                                                                }}>
+                                                                    <div>
+                                                                        <p style={{ margin: "0", fontWeight: "600", color: "#333" }}>{usuario.nombre}</p>
+                                                                        <p style={{ margin: "2px 0 0 0", fontSize: "14px", color: "#666" }}>{usuario.totalCompras} compras</p>
+                                                                    </div>
+                                                                    <div style={{ textAlign: "right" }}>
+                                                                        <p style={{ margin: "0", fontWeight: "600", color: "#667eea" }}>
+                                                                            ${usuario.totalGastado.toLocaleString()}
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p style={{ textAlign: "center", color: "#666", padding: "20px 0" }}>
+                                                            No hay datos de usuarios disponibles
+                                                        </p>
+                                                    )}
+                                                </div>
+
+                                                {/* Top productos */}
+                                                <div style={{
+                                                    background: "white",
+                                                    borderRadius: "16px",
+                                                    padding: "25px",
+                                                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)"
+                                                }}>
+                                                    <h3 style={{ margin: "0 0 20px 0", color: "#333", fontSize: "18px" }}>Productos Más Vendidos</h3>
+                                                    {estadisticasProductos.productosMasVendidos && estadisticasProductos.productosMasVendidos.length > 0 ? (
+                                                        <div>
+                                                            {estadisticasProductos.productosMasVendidos.map((producto, index) => (
+                                                                <div key={index} style={{
+                                                                    display: "flex",
+                                                                    justifyContent: "space-between",
+                                                                    alignItems: "center",
+                                                                    padding: "12px 0",
+                                                                    borderBottom: index < estadisticasProductos.productosMasVendidos.length - 1 ? "1px solid #f0f0f0" : "none"
+                                                                }}>
+                                                                    <div>
+                                                                        <p style={{ margin: "0", fontWeight: "600", color: "#333" }}>{producto.nombre}</p>
+                                                                    </div>
+                                                                    <div style={{ textAlign: "right" }}>
+                                                                        <p style={{ margin: "0", fontWeight: "600", color: "#f093fb" }}>
+                                                                            {producto.totalVendido} vendidos
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p style={{ textAlign: "center", color: "#666", padding: "20px 0" }}>
+                                                            No hay datos de productos disponibles
+                                                        </p>
+                                                    )}
+                                                </div>
+                                            </div>
+
+                                            {/* Botón para actualizar datos */}
+                                            <div style={{ textAlign: "center", marginTop: "30px" }}>
+                                                <button
+                                                    onClick={obtenerEstadisticas}
+                                                    disabled={cargandoEstadisticas}
+                                                    style={{
+                                                        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                                                        color: "white",
+                                                        border: "none",
+                                                        borderRadius: "10px",
+                                                        padding: "12px 24px",
+                                                        fontSize: "16px",
+                                                        fontWeight: "600",
+                                                        cursor: cargandoEstadisticas ? "not-allowed" : "pointer",
+                                                        opacity: cargandoEstadisticas ? 0.7 : 1,
+                                                        boxShadow: "0 4px 15px rgba(102, 126, 234, 0.3)",
+                                                        transition: "all 0.3s ease"
+                                                    }}
+                                                >
+                                                    {cargandoEstadisticas ? "Actualizando..." : "🔄 Actualizar Estadísticas"}
+                                                </button>
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             )}
                             {activeSection === "usuarios" && puedeVerUsuarios && (
                                 <div style={{ width: "100%" }}>

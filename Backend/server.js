@@ -1647,6 +1647,179 @@ app.get("/auth/google/callback",
 
 
 
+// APIs para estadísticas del dashboard
+app.get("/api/estadisticas/ventas", async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    
+    // Total de ventas
+    const totalVentasResult = await connection.execute(
+      `SELECT COUNT(*) as total_ventas, NVL(SUM(total), 0) as monto_total 
+       FROM pedidos WHERE estado = 'Completado'`
+    );
+    
+    // Ventas por mes (últimos 6 meses)
+    const ventasPorMesResult = await connection.execute(
+      `SELECT TO_CHAR(fecha_pedido, 'MM-YYYY') as mes, 
+              COUNT(*) as cantidad_ventas,
+              NVL(SUM(total), 0) as monto_ventas
+       FROM pedidos 
+       WHERE fecha_pedido >= ADD_MONTHS(SYSDATE, -6) AND estado = 'Completado'
+       GROUP BY TO_CHAR(fecha_pedido, 'MM-YYYY')
+       ORDER BY TO_DATE(mes, 'MM-YYYY')`
+    );
+    
+    res.json({
+      totalVentas: totalVentasResult.rows[0][0] || 0,
+      montoTotal: totalVentasResult.rows[0][1] || 0,
+      ventasPorMes: ventasPorMesResult.rows.map(row => ({
+        mes: row[0],
+        cantidadVentas: row[1],
+        montoVentas: row[2]
+      }))
+    });
+  } catch (error) {
+    console.error("Error al obtener estadísticas de ventas:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.get("/api/estadisticas/productos", async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    
+    // Total de productos
+    const totalProductosResult = await connection.execute(
+      `SELECT COUNT(*) as total_productos FROM Producto`
+    );
+    
+    // Productos más vendidos - usando la tabla reserva_producto que sí existe
+    const productosMasVendidosResult = await connection.execute(
+      `SELECT p.nombre, NVL(SUM(rp.cantidad), 0) as total_vendido
+       FROM Producto p
+       LEFT JOIN reserva_producto rp ON p.codigo_producto = rp.codigo_producto
+       GROUP BY p.codigo_producto, p.nombre
+       ORDER BY total_vendido DESC
+       FETCH FIRST 5 ROWS ONLY`
+    );
+    
+    // Productos con bajo stock
+    const productosBajoStockResult = await connection.execute(
+      `SELECT nombre, stock FROM Producto WHERE stock < 10 ORDER BY stock ASC`
+    );
+    
+    res.json({
+      totalProductos: totalProductosResult.rows[0][0] || 0,
+      productosMasVendidos: productosMasVendidosResult.rows.map(row => ({
+        nombre: row[0],
+        totalVendido: row[1]
+      })),
+      productosBajoStock: productosBajoStockResult.rows.map(row => ({
+        nombre: row[0],
+        stock: row[1]
+      }))
+    });
+  } catch (error) {
+    console.error("Error al obtener estadísticas de productos:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.get("/api/estadisticas/usuarios", async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    
+    // Total de usuarios
+    const totalUsuariosResult = await connection.execute(
+      `SELECT COUNT(*) as total_usuarios FROM Usuarios`
+    );
+    
+    // Usuarios con más compras
+    const usuariosMasComprasResult = await connection.execute(
+      `SELECT u.primer_nombre || ' ' || u.primer_apellido as nombre,
+              COUNT(p.numero_orden) as total_compras,
+              NVL(SUM(p.total), 0) as total_gastado
+       FROM Usuarios u
+       LEFT JOIN pedidos p ON u.rut = p.rut AND p.estado = 'Completado'
+       GROUP BY u.rut, u.primer_nombre, u.primer_apellido
+       HAVING COUNT(p.numero_orden) > 0
+       ORDER BY total_compras DESC, total_gastado DESC
+       FETCH FIRST 5 ROWS ONLY`
+    );
+    
+    // Nuevos usuarios (último mes) - removemos esta consulta porque no existe campo fecha_registro
+    const nuevosUsuariosResult = await connection.execute(
+      `SELECT COUNT(*) as nuevos_usuarios FROM Usuarios`
+    );
+    
+    res.json({
+      totalUsuarios: totalUsuariosResult.rows[0][0] || 0,
+      usuariosMasCompras: usuariosMasComprasResult.rows.map(row => ({
+        nombre: row[0],
+        totalCompras: row[1],
+        totalGastado: row[2]
+      })),
+      nuevosUsuarios: nuevosUsuariosResult.rows[0][0] || 0
+    });
+  } catch (error) {
+    console.error("Error al obtener estadísticas de usuarios:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+app.get("/api/estadisticas/pedidos", async (req, res) => {
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    
+    // Total de pedidos por estado
+    const pedidosPorEstadoResult = await connection.execute(
+      `SELECT estado, COUNT(*) as cantidad 
+       FROM pedidos 
+       GROUP BY estado 
+       ORDER BY cantidad DESC`
+    );
+    
+    // Pedidos recientes (últimos 10)
+    const pedidosRecientesResult = await connection.execute(
+      `SELECT p.numero_orden, u.primer_nombre || ' ' || u.primer_apellido as cliente,
+              p.total, p.estado, p.fecha_pedido
+       FROM pedidos p
+       JOIN usuarios u ON p.rut = u.rut
+       ORDER BY p.fecha_pedido DESC
+       FETCH FIRST 10 ROWS ONLY`
+    );
+    
+    res.json({
+      pedidosPorEstado: pedidosPorEstadoResult.rows.map(row => ({
+        estado: row[0],
+        cantidad: row[1]
+      })),
+      pedidosRecientes: pedidosRecientesResult.rows.map(row => ({
+        numeroOrden: row[0],
+        cliente: row[1],
+        total: row[2],
+        estado: row[3],
+        fecha: row[4]
+      }))
+    });
+  } catch (error) {
+    console.error("Error al obtener estadísticas de pedidos:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
 /*FIN CODIGO */
 app.get("/", (req, res) => {
   res.send("¡Servidor funcionando en el puerto 5000!");
