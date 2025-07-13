@@ -114,7 +114,7 @@ function Dashboard() {
                 axios.get("http://localhost:5000/api/estadisticas/usuarios"),
                 axios.get("http://localhost:5000/api/estadisticas/pedidos")
             ]);
-            
+
             setEstadisticasVentas(ventasRes.data);
             setEstadisticasProductos(productosRes.data);
             setEstadisticasUsuarios(usuariosRes.data);
@@ -743,11 +743,11 @@ function Dashboard() {
                                     ) : (
                                         <>
                                             {/* Tarjetas de resumen */}
-                                            <div style={{ 
-                                                display: "grid", 
-                                                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", 
-                                                gap: "20px", 
-                                                marginBottom: "30px" 
+                                            <div style={{
+                                                display: "grid",
+                                                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+                                                gap: "20px",
+                                                marginBottom: "30px"
                                             }}>
                                                 <div style={{
                                                     background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
@@ -819,11 +819,11 @@ function Dashboard() {
                                             </div>
 
                                             {/* Gráficos */}
-                                            <div style={{ 
-                                                display: "grid", 
-                                                gridTemplateColumns: "2fr 1fr", 
-                                                gap: "25px", 
-                                                marginBottom: "30px" 
+                                            <div style={{
+                                                display: "grid",
+                                                gridTemplateColumns: "2fr 1fr",
+                                                gap: "25px",
+                                                marginBottom: "30px"
                                             }}>
                                                 {/* Gráfico de ventas por mes */}
                                                 <div style={{
@@ -880,41 +880,56 @@ function Dashboard() {
                                                     background: "white",
                                                     borderRadius: "16px",
                                                     padding: "25px",
-                                                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)"
+                                                    boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
+                                                    height: "400px", // Altura fija para el contenedor
+                                                    display: "flex",
+                                                    flexDirection: "column"
                                                 }}>
                                                     <h3 style={{ margin: "0 0 20px 0", color: "#333", fontSize: "18px" }}>Estados de Pedidos</h3>
                                                     {estadisticasPedidos.pedidosPorEstado && estadisticasPedidos.pedidosPorEstado.length > 0 ? (
-                                                        <Doughnut
-                                                            data={{
-                                                                labels: estadisticasPedidos.pedidosPorEstado.map(p => p.estado),
-                                                                datasets: [{
-                                                                    data: estadisticasPedidos.pedidosPorEstado.map(p => p.cantidad),
-                                                                    backgroundColor: [
-                                                                        '#667eea',
-                                                                        '#f093fb',
-                                                                        '#4facfe',
-                                                                        '#fa709a',
-                                                                        '#ffeaa7',
-                                                                        '#fd79a8'
-                                                                    ],
-                                                                    borderWidth: 0
-                                                                }]
-                                                            }}
-                                                            options={{
-                                                                responsive: true,
-                                                                maintainAspectRatio: false,
-                                                                plugins: {
-                                                                    legend: {
-                                                                        position: 'bottom',
-                                                                        labels: {
-                                                                            padding: 15,
-                                                                            usePointStyle: true
+                                                        <div style={{
+                                                            flex: 1,
+                                                            display: "flex",
+                                                            alignItems: "center",
+                                                            justifyContent: "center",
+                                                            maxHeight: "320px" // Altura máxima para el gráfico
+                                                        }}>
+                                                            <Doughnut
+                                                                data={{
+                                                                    labels: estadisticasPedidos.pedidosPorEstado.map(p => p.estado),
+                                                                    datasets: [{
+                                                                        data: estadisticasPedidos.pedidosPorEstado.map(p => p.cantidad),
+                                                                        backgroundColor: [
+                                                                            '#667eea',
+                                                                            '#f093fb',
+                                                                            '#4facfe',
+                                                                            '#fa709a',
+                                                                            '#ffeaa7',
+                                                                            '#fd79a8'
+                                                                        ],
+                                                                        borderWidth: 0
+                                                                    }]
+                                                                }}
+                                                                options={{
+                                                                    responsive: true,
+                                                                    maintainAspectRatio: true,
+                                                                    aspectRatio: 1, // Mantener relación 1:1 (círculo perfecto)
+                                                                    plugins: {
+                                                                        legend: {
+                                                                            position: 'bottom',
+                                                                            labels: {
+                                                                                padding: 15,
+                                                                                usePointStyle: true,
+                                                                                boxWidth: 12,
+                                                                                font: {
+                                                                                    size: 12
+                                                                                }
+                                                                            }
                                                                         }
                                                                     }
-                                                                }
-                                                            }}
-                                                            height={200}
-                                                        />
+                                                                }}
+                                                            />
+                                                        </div>
                                                     ) : (
                                                         <p style={{ textAlign: "center", color: "#666", padding: "40px 0" }}>
                                                             No hay datos de pedidos disponibles
@@ -924,10 +939,10 @@ function Dashboard() {
                                             </div>
 
                                             {/* Tablas de datos */}
-                                            <div style={{ 
-                                                display: "grid", 
-                                                gridTemplateColumns: "1fr 1fr", 
-                                                gap: "25px" 
+                                            <div style={{
+                                                display: "grid",
+                                                gridTemplateColumns: "1fr 1fr",
+                                                gap: "25px"
                                             }}>
                                                 {/* Top usuarios */}
                                                 <div style={{

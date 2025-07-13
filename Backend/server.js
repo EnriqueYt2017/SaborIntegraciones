@@ -908,7 +908,6 @@ app.delete("/api/planes-nutricion/:id", async (req, res) => {
 });
 
 // Modificar plan de nutrición
-// ...existing code...
 app.put("/api/planes-nutricion/:id", async (req, res) => {
   const id = req.params.id;
   const {
@@ -1646,184 +1645,109 @@ app.get("/auth/google/callback",
 );
 
 
-
-// APIs para estadísticas del dashboard
-app.get("/api/estadisticas/ventas", async (req, res) => {
+// API para procesar compras mixtas (productos + planes)
+app.post("/api/procesar-compra-mixta", async (req, res) => {
+  const { usuario, productos, planes, total, metodo_pago } = req.body;
   let connection;
+  
   try {
     connection = await oracledb.getConnection(dbConfig);
     
-    // Total de ventas
-    const totalVentasResult = await connection.execute(
-      `SELECT COUNT(*) as total_ventas, NVL(SUM(total), 0) as monto_total 
-       FROM pedidos WHERE estado = 'Completado'`
+    // Generar número de transacción único
+    const numeroTransaccion = Date.now();
+    
+    // 1. Procesar productos (van a la tabla de pedidos)
+    if (productos && productos.length > 0) {
+      // Crear pedido para productos
+      const numeroPedido = `PED-${Date.now()}`;
+      const totalProductos = productos.reduce((sum, p) => sum + (p.precio * p.cantidad), 0);
+      
+      await connection.execute(
+        `INSERT INTO pedidos (numero_orden, rut, fecha_pedido, estado, total, direccion, observaciones)
+         VALUES (:numero_orden, :rut, SYSDATE, 'Pendiente', :total, :direccion, 'Compra de productos')`,
+        {
+          numero_orden: numeroPedido,
+          rut: usuario.rut,
+          total: totalProductos,
+          direccion: usuario.direccion || 'Por definir'
+        },
+        { autoCommit: false }
+      );
+      
+      // Actualizar stock de productos
+      for (const producto of productos) {
+        await connection.execute(
+          `UPDATE Producto SET stock = stock - :cantidad WHERE codigo_producto = :codigo`,
+          {
+            cantidad: producto.cantidad,
+            codigo: producto.codigo_producto
+          },
+          { autoCommit: false }
+        );
+      }
+    }
+    
+    // 2. Procesar planes (van a la tabla de suscripciones)
+    if (planes && planes.length > 0) {
+      for (const plan of planes) {
+        const fechaInicio = new Date();
+        const fechaFin = new Date();
+        fechaFin.setMonth(fechaFin.getMonth() + 1); // 1 mes de duración por defecto
+        
+        await connection.execute(
+          `INSERT INTO SUSCRIPCIONES 
+           (ID_SUSCRIPCION, ID_PLAN, NOMBRE, DESCRIPCION, FECHAINICIO, FECHAFIN, OBJETIVO, RUT, TIPO_PLAN)
+           VALUES 
+           (SEQ_SUSCRIPCIONES.NEXTVAL, :id_plan, :nombre, :descripcion, 
+            TO_DATE(:fecha_inicio, 'YYYY-MM-DD'), TO_DATE(:fecha_fin, 'YYYY-MM-DD'), 
+            :objetivo, :rut, :tipo_plan)`,
+          {
+            id_plan: plan.id_plan,
+            nombre: plan.nombre,
+            descripcion: plan.descripcion,
+            fecha_inicio: fechaInicio.toISOString().split('T')[0],
+            fecha_fin: fechaFin.toISOString().split('T')[0],
+            objetivo: plan.objetivo || 'Mejora personal',
+            rut: usuario.rut,
+            tipo_plan: plan.tipo_plan
+          },
+          { autoCommit: false }
+        );
+      }
+    }
+    
+    // 3. Registrar en historial la transacción completa
+    await connection.execute(
+      `INSERT INTO HISTORIAL 
+       (ID_HISTORIAL, FECHA_TRANSACCION, METODO_DE_PAGO, MONTO, DESCRIPCION_TRANSACCION, N_ORDEN, RUT)
+       VALUES 
+       (SEQ_HISTORIAL.NEXTVAL, SYSDATE, :metodo_pago, :total, :descripcion, :n_orden, :rut)`,
+      {
+        metodo_pago: metodo_pago,
+        total: total,
+        descripcion: `Compra mixta: ${productos?.length || 0} productos, ${planes?.length || 0} planes`,
+        n_orden: numeroTransaccion,
+        rut: usuario.rut
+      },
+      { autoCommit: false }
     );
     
-    // Ventas por mes (últimos 6 meses)
-    const ventasPorMesResult = await connection.execute(
-      `SELECT TO_CHAR(fecha_pedido, 'MM-YYYY') as mes, 
-              COUNT(*) as cantidad_ventas,
-              NVL(SUM(total), 0) as monto_ventas
-       FROM pedidos 
-       WHERE fecha_pedido >= ADD_MONTHS(SYSDATE, -6) AND estado = 'Completado'
-       GROUP BY TO_CHAR(fecha_pedido, 'MM-YYYY')
-       ORDER BY TO_DATE(mes, 'MM-YYYY')`
-    );
+    // Confirmar todas las transacciones
+    await connection.commit();
     
-    res.json({
-      totalVentas: totalVentasResult.rows[0][0] || 0,
-      montoTotal: totalVentasResult.rows[0][1] || 0,
-      ventasPorMes: ventasPorMesResult.rows.map(row => ({
-        mes: row[0],
-        cantidadVentas: row[1],
-        montoVentas: row[2]
-      }))
+    res.json({ 
+      success: true, 
+      mensaje: "Compra procesada correctamente",
+      numeroTransaccion: numeroTransaccion,
+      productos_procesados: productos?.length || 0,
+      planes_procesados: planes?.length || 0
     });
-  } catch (error) {
-    console.error("Error al obtener estadísticas de ventas:", error);
-    res.status(500).json({ error: "Error interno del servidor" });
+    
+  } catch (err) {
+    console.error("Error al procesar compra mixta:", err);
+    if (connection) await connection.rollback();
+    res.status(500).json({ error: "No se pudo procesar la compra" });
   } finally {
     if (connection) await connection.close();
   }
-});
-
-app.get("/api/estadisticas/productos", async (req, res) => {
-  let connection;
-  try {
-    connection = await oracledb.getConnection(dbConfig);
-    
-    // Total de productos
-    const totalProductosResult = await connection.execute(
-      `SELECT COUNT(*) as total_productos FROM Producto`
-    );
-    
-    // Productos más vendidos - usando la tabla reserva_producto que sí existe
-    const productosMasVendidosResult = await connection.execute(
-      `SELECT p.nombre, NVL(SUM(rp.cantidad), 0) as total_vendido
-       FROM Producto p
-       LEFT JOIN reserva_producto rp ON p.codigo_producto = rp.codigo_producto
-       GROUP BY p.codigo_producto, p.nombre
-       ORDER BY total_vendido DESC
-       FETCH FIRST 5 ROWS ONLY`
-    );
-    
-    // Productos con bajo stock
-    const productosBajoStockResult = await connection.execute(
-      `SELECT nombre, stock FROM Producto WHERE stock < 10 ORDER BY stock ASC`
-    );
-    
-    res.json({
-      totalProductos: totalProductosResult.rows[0][0] || 0,
-      productosMasVendidos: productosMasVendidosResult.rows.map(row => ({
-        nombre: row[0],
-        totalVendido: row[1]
-      })),
-      productosBajoStock: productosBajoStockResult.rows.map(row => ({
-        nombre: row[0],
-        stock: row[1]
-      }))
-    });
-  } catch (error) {
-    console.error("Error al obtener estadísticas de productos:", error);
-    res.status(500).json({ error: "Error interno del servidor" });
-  } finally {
-    if (connection) await connection.close();
-  }
-});
-
-app.get("/api/estadisticas/usuarios", async (req, res) => {
-  let connection;
-  try {
-    connection = await oracledb.getConnection(dbConfig);
-    
-    // Total de usuarios
-    const totalUsuariosResult = await connection.execute(
-      `SELECT COUNT(*) as total_usuarios FROM Usuarios`
-    );
-    
-    // Usuarios con más compras
-    const usuariosMasComprasResult = await connection.execute(
-      `SELECT u.primer_nombre || ' ' || u.primer_apellido as nombre,
-              COUNT(p.numero_orden) as total_compras,
-              NVL(SUM(p.total), 0) as total_gastado
-       FROM Usuarios u
-       LEFT JOIN pedidos p ON u.rut = p.rut AND p.estado = 'Completado'
-       GROUP BY u.rut, u.primer_nombre, u.primer_apellido
-       HAVING COUNT(p.numero_orden) > 0
-       ORDER BY total_compras DESC, total_gastado DESC
-       FETCH FIRST 5 ROWS ONLY`
-    );
-    
-    // Nuevos usuarios (último mes) - removemos esta consulta porque no existe campo fecha_registro
-    const nuevosUsuariosResult = await connection.execute(
-      `SELECT COUNT(*) as nuevos_usuarios FROM Usuarios`
-    );
-    
-    res.json({
-      totalUsuarios: totalUsuariosResult.rows[0][0] || 0,
-      usuariosMasCompras: usuariosMasComprasResult.rows.map(row => ({
-        nombre: row[0],
-        totalCompras: row[1],
-        totalGastado: row[2]
-      })),
-      nuevosUsuarios: nuevosUsuariosResult.rows[0][0] || 0
-    });
-  } catch (error) {
-    console.error("Error al obtener estadísticas de usuarios:", error);
-    res.status(500).json({ error: "Error interno del servidor" });
-  } finally {
-    if (connection) await connection.close();
-  }
-});
-
-app.get("/api/estadisticas/pedidos", async (req, res) => {
-  let connection;
-  try {
-    connection = await oracledb.getConnection(dbConfig);
-    
-    // Total de pedidos por estado
-    const pedidosPorEstadoResult = await connection.execute(
-      `SELECT estado, COUNT(*) as cantidad 
-       FROM pedidos 
-       GROUP BY estado 
-       ORDER BY cantidad DESC`
-    );
-    
-    // Pedidos recientes (últimos 10)
-    const pedidosRecientesResult = await connection.execute(
-      `SELECT p.numero_orden, u.primer_nombre || ' ' || u.primer_apellido as cliente,
-              p.total, p.estado, p.fecha_pedido
-       FROM pedidos p
-       JOIN usuarios u ON p.rut = u.rut
-       ORDER BY p.fecha_pedido DESC
-       FETCH FIRST 10 ROWS ONLY`
-    );
-    
-    res.json({
-      pedidosPorEstado: pedidosPorEstadoResult.rows.map(row => ({
-        estado: row[0],
-        cantidad: row[1]
-      })),
-      pedidosRecientes: pedidosRecientesResult.rows.map(row => ({
-        numeroOrden: row[0],
-        cliente: row[1],
-        total: row[2],
-        estado: row[3],
-        fecha: row[4]
-      }))
-    });
-  } catch (error) {
-    console.error("Error al obtener estadísticas de pedidos:", error);
-    res.status(500).json({ error: "Error interno del servidor" });
-  } finally {
-    if (connection) await connection.close();
-  }
-});
-
-/*FIN CODIGO */
-app.get("/", (req, res) => {
-  res.send("¡Servidor funcionando en el puerto 5000!");
-});
-app.listen(5000, () => {
-  console.log("✅ Servidor corriendo en http://localhost:5000");
 });
