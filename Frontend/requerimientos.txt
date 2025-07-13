@@ -6,3 +6,4 @@ npm install vite --save-dev
 npm install jspdf
 npm install react-icons
 npm install -g vite
+npm install socket.io-client

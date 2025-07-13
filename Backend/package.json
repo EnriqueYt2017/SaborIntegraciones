@@ -12,6 +12,7 @@
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
     "pdfkit": "^0.17.1",
+    "socket.io": "^4.8.1",
     "transbank-sdk": "^6.1.0",
     "twilio": "^5.7.3"
   }

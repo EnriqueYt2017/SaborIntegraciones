@@ -215,7 +215,7 @@ const Entrenamiento = () => {
 
     // Foro
     const irAlForo = () => {
-        navigate("/planes/foros");
+        navigate("/chat");
     };
 
     // Mensaje del preparador físico al cliente (puedes expandir esto a chat real)

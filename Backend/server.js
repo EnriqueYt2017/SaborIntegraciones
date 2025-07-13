@@ -7,6 +7,7 @@ const app = express();
 const cors = require("cors");
 const nodemailer = require("nodemailer");
 const webpayRoutes = require("./routes/webpay");
+const chatRoutes = require("./routes/chat");
 const PDFDocument = require("pdfkit");
 const { Readable } = require("stream");
 const path = require("path");
@@ -14,6 +15,8 @@ const logo = path.join(__dirname, "routes", "icono-logo.png");
 const twilio = require('twilio');
 const multer = require("multer");
 const dbConfig = require("./dbConfig");
+const http = require("http");
+const socketIo = require("socket.io");
 //GMAIL
 const session = require("express-session");
 const passport = require("passport");
@@ -61,12 +64,24 @@ app.get("/auth/google",
 
 //////////////////FIN///////////////////////////////////
 
+// Crear servidor HTTP
+const server = http.createServer(app);
+
+// Configurar Socket.IO con CORS
+const io = socketIo(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+
 app.use("/uploads", express.static("uploads"));
 dotenv.config();
 app.use(express.json());
 app.use(cors());
 
 app.use("/webpay", webpayRoutes);
+app.use("/api/chat", chatRoutes);
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -2253,9 +2268,165 @@ app.get("/api/estadisticas/pedidos", async (req, res) => {
   }
 });
 
+// Socket.IO para chat en tiempo real
+const usuarios_conectados = new Map(); // Mapear socketId con rutUsuario
+
+io.on('connection', (socket) => {
+  console.log('👤 Usuario conectado:', socket.id);
+
+  // Usuario se une con su RUT
+  socket.on('join_user', (rutUsuario) => {
+    usuarios_conectados.set(socket.id, rutUsuario);
+    socket.join(`user_${rutUsuario}`);
+    console.log(`👤 Usuario ${rutUsuario} se unió al chat`);
+  });
+
+  // Unirse a una conversación específica
+  socket.on('join_conversation', (conversationId) => {
+    socket.join(conversationId);
+    console.log(`💬 Usuario se unió a conversación: ${conversationId}`);
+  });
+
+  // Unirse a un grupo
+  socket.on('join_group', (groupId) => {
+    socket.join(`group_${groupId}`);
+    console.log(`👥 Usuario se unió al grupo: ${groupId}`);
+  });
+
+  // Enviar mensaje en conversación privada
+  socket.on('send_message', async (data) => {
+    const { conversacionId, rutRemitente, contenido, tipoMensaje = "texto" } = data;
+    
+    try {
+      // Guardar mensaje en base de datos
+      let connection = await oracledb.getConnection(dbConfig);
+      const idMensaje = `MSG_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const query = `
+        INSERT INTO Mensajes (
+          id_mensaje, conversacion_id, rut_remitente, 
+          contenido, fecha_envio, leido, tipo_mensaje
+        ) VALUES (
+          :idMensaje, :conversacionId, :rutRemitente, 
+          :contenido, CURRENT_TIMESTAMP, 0, :tipoMensaje
+        )
+      `;
+      
+      await connection.execute(query, {
+        idMensaje, conversacionId, rutRemitente, contenido, tipoMensaje
+      });
+      await connection.commit();
+      await connection.close();
+
+      // Enviar mensaje a todos en la conversación
+      const mensajeCompleto = {
+        id: idMensaje,
+        conversacionId,
+        rutRemitente,
+        contenido,
+        fechaEnvio: new Date(),
+        tipoMensaje
+      };
+
+      io.to(conversacionId).emit('new_message', mensajeCompleto);
+      console.log(`📨 Mensaje enviado en conversación ${conversacionId}`);
+    } catch (error) {
+      console.error('❌ Error al enviar mensaje:', error);
+      socket.emit('message_error', { error: 'Error al enviar mensaje' });
+    }
+  });
+
+  // Enviar mensaje en grupo
+  socket.on('send_group_message', async (data) => {
+    const { grupoId, rutRemitente, contenido, tipoMensaje = "texto" } = data;
+    
+    try {
+      let connection = await oracledb.getConnection(dbConfig);
+      const idMensaje = `GMSG_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      
+      const query = `
+        INSERT INTO MensajesGrupo (
+          id_mensaje, id_grupo, rut_remitente, 
+          contenido, fecha_envio, tipo_mensaje
+        ) VALUES (
+          :idMensaje, :grupoId, :rutRemitente, 
+          :contenido, CURRENT_TIMESTAMP, :tipoMensaje
+        )
+      `;
+      
+      await connection.execute(query, {
+        idMensaje, grupoId, rutRemitente, contenido, tipoMensaje
+      });
+      await connection.commit();
+      await connection.close();
+
+      const mensajeCompleto = {
+        id: idMensaje,
+        grupoId,
+        rutRemitente,
+        contenido,
+        fechaEnvio: new Date(),
+        tipoMensaje
+      };
+
+      io.to(`group_${grupoId}`).emit('new_group_message', mensajeCompleto);
+      console.log(`📨 Mensaje enviado en grupo ${grupoId}`);
+    } catch (error) {
+      console.error('❌ Error al enviar mensaje de grupo:', error);
+      socket.emit('message_error', { error: 'Error al enviar mensaje de grupo' });
+    }
+  });
+
+  // Marcar mensajes como leídos
+  socket.on('mark_as_read', async (data) => {
+    const { conversacionId, rutUsuario } = data;
+    
+    try {
+      let connection = await oracledb.getConnection(dbConfig);
+      const query = `
+        UPDATE Mensajes 
+        SET leido = 1 
+        WHERE conversacion_id = :conversacionId 
+        AND rut_remitente != :rutUsuario 
+        AND leido = 0
+      `;
+      
+      await connection.execute(query, { conversacionId, rutUsuario });
+      await connection.commit();
+      await connection.close();
+
+      // Notificar que los mensajes fueron leídos
+      io.to(conversacionId).emit('messages_read', { conversacionId, rutUsuario });
+    } catch (error) {
+      console.error('❌ Error al marcar mensajes como leídos:', error);
+    }
+  });
+
+  // Usuario escribiendo
+  socket.on('typing', (data) => {
+    const { conversacionId, rutUsuario, nombreUsuario } = data;
+    socket.to(conversacionId).emit('user_typing', { rutUsuario, nombreUsuario });
+  });
+
+  // Usuario dejó de escribir
+  socket.on('stop_typing', (data) => {
+    const { conversacionId, rutUsuario } = data;
+    socket.to(conversacionId).emit('user_stop_typing', { rutUsuario });
+  });
+
+  // Desconexión
+  socket.on('disconnect', () => {
+    const rutUsuario = usuarios_conectados.get(socket.id);
+    if (rutUsuario) {
+      console.log(`👤 Usuario ${rutUsuario} se desconectó`);
+      usuarios_conectados.delete(socket.id);
+    }
+  });
+});
+
 // Iniciar el servidor
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`✅ Servidor backend iniciado correctamente en puerto ${PORT}`);
   console.log(`🔗 URL: http://localhost:${PORT}`);
   console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard`);
