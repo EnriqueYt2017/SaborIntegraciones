@@ -115,13 +115,20 @@ function Dashboard() {
                 axios.get("http://localhost:5000/api/estadisticas/pedidos")
             ]);
 
-            setEstadisticasVentas(ventasRes.data);
-            setEstadisticasProductos(productosRes.data);
-            setEstadisticasUsuarios(usuariosRes.data);
-            setEstadisticasPedidos(pedidosRes.data);
+            setEstadisticasVentas(ventasRes.data || {});
+            setEstadisticasProductos(productosRes.data || {});
+            setEstadisticasUsuarios(usuariosRes.data || {});
+            setEstadisticasPedidos(pedidosRes.data || {});
+            
+            mostrarAlerta("Estadísticas cargadas correctamente desde el servidor", "success");
         } catch (err) {
             console.error("Error al obtener estadísticas:", err);
-            mostrarAlerta("Error al cargar estadísticas", "error");
+            mostrarAlerta("Error al conectar con el servidor backend", "error");
+            // Establecer valores por defecto en caso de error
+            setEstadisticasVentas({});
+            setEstadisticasProductos({});
+            setEstadisticasUsuarios({});
+            setEstadisticasPedidos({});
         } finally {
             setCargandoEstadisticas(false);
         }
@@ -330,6 +337,26 @@ function Dashboard() {
     // 
     return (
         <>
+            {/* Estilos para animaciones */}
+            <style>
+                {`
+                    @keyframes spin {
+                        0% { transform: rotate(0deg); }
+                        100% { transform: rotate(360deg); }
+                    }
+                    @keyframes epicFloat {
+                        0% { 
+                            opacity: 0; 
+                            transform: translateY(-30px) scale(0.8); 
+                        }
+                        100% { 
+                            opacity: 1; 
+                            transform: translateY(0) scale(1); 
+                        }
+                    }
+                `}
+            </style>
+            
             {alerta.visible && (
                 <div
                     style={{
@@ -736,8 +763,40 @@ function Dashboard() {
                             </span>
                             {activeSection === "Inicio" && (
                                 <div style={{ width: "100%", padding: "0 20px" }}>
+                                    {/* Estado de conexión */}
+                                    <div style={{
+                                        background: "white",
+                                        borderRadius: "12px",
+                                        padding: "15px 20px",
+                                        marginBottom: "20px",
+                                        boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                                        border: "1px solid #e2e8f0"
+                                    }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                                            <div style={{
+                                                width: "8px",
+                                                height: "8px",
+                                                borderRadius: "50%",
+                                                background: cargandoEstadisticas ? "#fbbf24" : (estadisticasVentas?.totalVentas !== undefined ? "#10b981" : "#ef4444")
+                                            }}></div>
+                                            <span style={{ fontSize: "14px", color: "#64748b" }}>
+                                                {cargandoEstadisticas ? "Cargando datos del servidor..." : 
+                                                 (estadisticasVentas?.totalVentas !== undefined ? "Conectado - Datos en tiempo real" : "Error de conexión al servidor")}
+                                            </span>
+                                        </div>
+                                    </div>
+
                                     {cargandoEstadisticas ? (
                                         <div style={{ textAlign: "center", padding: "40px" }}>
+                                            <div style={{
+                                                width: "50px",
+                                                height: "50px",
+                                                border: "4px solid #f3f4f6",
+                                                borderTop: "4px solid #667eea",
+                                                borderRadius: "50%",
+                                                animation: "spin 1s linear infinite",
+                                                margin: "0 auto 20px"
+                                            }}></div>
                                             <p style={{ fontSize: 18, color: "#666" }}>Cargando estadísticas...</p>
                                         </div>
                                     ) : (

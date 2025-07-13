@@ -5,3 +5,4 @@ npm install -D tailwindcss postcss autoprefixer
 npm install vite --save-dev
 npm install jspdf
 npm install react-icons
+npm install -g vite
