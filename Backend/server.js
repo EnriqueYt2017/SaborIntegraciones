@@ -1645,7 +1645,197 @@ app.get("/auth/google/callback",
 );
 
 
-// API para procesar compras mixtas (productos + planes)
+// CHAT APIs PARA WHATSAPP STYLE
+// Obtener lista de conversaciones del usuario (ya sea cliente o profesional)
+app.get("/api/chat/conversaciones/:rut", async (req, res) => {
+  const { rut } = req.params;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    
+    // Buscar conversaciones donde el usuario participe
+    const result = await connection.execute(
+      `SELECT DISTINCT 
+         CASE 
+           WHEN f.rut = :rut THEN f.destinatario_rut
+           ELSE f.rut 
+         END as otro_rut,
+         u.primer_nombre || ' ' || u.primer_apellido as nombre_completo,
+         u.telefono,
+         u.id_rol,
+         MAX(f.fecha_publicacion) as ultima_actividad,
+         COUNT(*) as total_mensajes
+       FROM FORO_ENTRENAMIENTO f
+       JOIN Usuarios u ON (
+         CASE 
+           WHEN f.rut = :rut THEN u.rut = f.destinatario_rut
+           ELSE u.rut = f.rut 
+         END
+       )
+       WHERE (f.rut = :rut OR f.destinatario_rut = :rut)
+       AND f.destinatario_rut IS NOT NULL
+       GROUP BY 
+         CASE WHEN f.rut = :rut THEN f.destinatario_rut ELSE f.rut END,
+         u.primer_nombre, u.primer_apellido, u.telefono, u.id_rol
+       ORDER BY ultima_actividad DESC`,
+      { rut },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    
+    res.json(result.rows.map(row => ({
+      rut: row.OTRO_RUT,
+      nombre: row.NOMBRE_COMPLETO,
+      telefono: row.TELEFONO,
+      rol: row.ID_ROL,
+      ultima_actividad: row.ULTIMA_ACTIVIDAD,
+      total_mensajes: row.TOTAL_MENSAJES
+    })));
+  } catch (err) {
+    console.error("Error al obtener conversaciones:", err);
+    res.status(500).json({ error: "No se pudieron obtener las conversaciones" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Obtener mensajes de una conversación específica
+app.get("/api/chat/mensajes/:miRut/:otroRut", async (req, res) => {
+  const { miRut, otroRut } = req.params;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    
+    const result = await connection.execute(
+      `SELECT id_foro, rut, nombre, rol, mensaje, fecha_publicacion, destinatario_rut
+       FROM FORO_ENTRENAMIENTO 
+       WHERE ((rut = :miRut AND destinatario_rut = :otroRut) 
+              OR (rut = :otroRut AND destinatario_rut = :miRut))
+       ORDER BY fecha_publicacion ASC`,
+      { miRut, otroRut },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    
+    res.json(result.rows.map(row => ({
+      id_foro: row.ID_FORO,
+      rut: row.RUT,
+      nombre: row.NOMBRE,
+      rol: row.ROL,
+      mensaje: row.MENSAJE,
+      fecha_publicacion: row.FECHA_PUBLICACION,
+      destinatario_rut: row.DESTINATARIO_RUT,
+      es_mio: row.RUT == miRut
+    })));
+  } catch (err) {
+    console.error("Error al obtener mensajes:", err);
+    res.status(500).json({ error: "No se pudieron obtener los mensajes" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Enviar mensaje privado
+app.post("/api/chat/enviar", async (req, res) => {
+  const { rut, nombre, rol, mensaje, destinatario_rut } = req.body;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    
+    await connection.execute(
+      `INSERT INTO FORO_ENTRENAMIENTO 
+       (ID_FORO, RUT, NOMBRE, ROL, MENSAJE, FECHA_PUBLICACION, DESTINATARIO_RUT)
+       VALUES (SEQ_FORO_ENTRENAMIENTO.NEXTVAL, :rut, :nombre, :rol, :mensaje, SYSDATE, :destinatario_rut)`,
+      { rut, nombre, rol, mensaje, destinatario_rut },
+      { autoCommit: true }
+    );
+    
+    res.status(201).json({ ok: true, mensaje: "Mensaje enviado correctamente" });
+  } catch (err) {
+    console.error("Error al enviar mensaje:", err);
+    res.status(500).json({ error: "No se pudo enviar el mensaje" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Buscar profesionales por teléfono (para iniciar chat)
+app.get("/api/chat/buscar-profesional/:telefono", async (req, res) => {
+  const { telefono } = req.params;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    
+    const result = await connection.execute(
+      `SELECT rut, primer_nombre, primer_apellido, telefono, id_rol
+       FROM Usuarios 
+       WHERE telefono = :telefono AND id_rol IN (2, 3)`,
+      { telefono },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "No se encontró profesional con ese teléfono" });
+    }
+    
+    const profesional = result.rows[0];
+    res.json({
+      rut: profesional.RUT,
+      nombre: `${profesional.PRIMER_NOMBRE} ${profesional.PRIMER_APELLIDO}`,
+      telefono: profesional.TELEFONO,
+      rol: profesional.ID_ROL,
+      tipo: profesional.ID_ROL === 2 ? 'Entrenador' : 'Nutricionista'
+    });
+  } catch (err) {
+    console.error("Error al buscar profesional:", err);
+    res.status(500).json({ error: "No se pudo buscar el profesional" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// Obtener profesionales asignados automáticamente cuando se subscribe a un plan
+app.get("/api/chat/profesionales-asignados/:rut", async (req, res) => {
+  const { rut } = req.params;
+  let connection;
+  try {
+    connection = await oracledb.getConnection(dbConfig);
+    
+    // Buscar profesionales basado en las suscripciones activas del usuario
+    const result = await connection.execute(
+      `SELECT DISTINCT 
+         u.rut, 
+         u.primer_nombre || ' ' || u.primer_apellido as nombre,
+         u.telefono,
+         u.id_rol,
+         CASE WHEN u.id_rol = 2 THEN 'Entrenador' ELSE 'Nutricionista' END as tipo,
+         s.tipo_plan
+       FROM SUSCRIPCIONES s
+       JOIN Usuarios u ON (
+         (s.tipo_plan = 'ENTRENAMIENTO' AND u.id_rol = 2) OR
+         (s.tipo_plan = 'NUTRICION' AND u.id_rol = 3)
+       )
+       WHERE s.rut = :rut 
+       AND s.fechafin >= SYSDATE`,
+      { rut },
+      { outFormat: oracledb.OUT_FORMAT_OBJECT }
+    );
+    
+    res.json(result.rows.map(row => ({
+      rut: row.RUT,
+      nombre: row.NOMBRE,
+      telefono: row.TELEFONO,
+      rol: row.ID_ROL,
+      tipo: row.TIPO,
+      plan_tipo: row.TIPO_PLAN
+    })));
+  } catch (err) {
+    console.error("Error al obtener profesionales asignados:", err);
+    res.status(500).json({ error: "No se pudieron obtener los profesionales asignados" });
+  } finally {
+    if (connection) await connection.close();
+  }
+});
+
+// API para procesar compras mixtas (productos + planes) con auto-asignación de chat
 app.post("/api/procesar-compra-mixta", async (req, res) => {
   const { usuario, productos, planes, total, metodo_pago } = req.body;
   let connection;
@@ -1687,7 +1877,7 @@ app.post("/api/procesar-compra-mixta", async (req, res) => {
       }
     }
     
-    // 2. Procesar planes (van a la tabla de suscripciones)
+    // 2. Procesar planes (van a la tabla de suscripciones) y auto-crear chats
     if (planes && planes.length > 0) {
       for (const plan of planes) {
         const fechaInicio = new Date();
@@ -1713,6 +1903,36 @@ app.post("/api/procesar-compra-mixta", async (req, res) => {
           },
           { autoCommit: false }
         );
+        
+        // AUTO-CREAR CHAT CON PROFESIONAL
+        // Buscar un profesional disponible según el tipo de plan
+        const rolProfesional = plan.tipo_plan === 'ENTRENAMIENTO' ? 2 : 3;
+        const profesionalResult = await connection.execute(
+          `SELECT rut, primer_nombre, primer_apellido FROM Usuarios 
+           WHERE id_rol = :rol AND ROWNUM = 1 ORDER BY rut`,
+          { rol: rolProfesional },
+          { outFormat: oracledb.OUT_FORMAT_OBJECT }
+        );
+        
+        if (profesionalResult.rows.length > 0) {
+          const profesional = profesionalResult.rows[0];
+          const tipoProfesional = plan.tipo_plan === 'ENTRENAMIENTO' ? 'Entrenador' : 'Nutricionista';
+          
+          // Crear mensaje de bienvenida automático del profesional al cliente
+          await connection.execute(
+            `INSERT INTO FORO_ENTRENAMIENTO 
+             (ID_FORO, RUT, NOMBRE, ROL, MENSAJE, FECHA_PUBLICACION, DESTINATARIO_RUT)
+             VALUES (SEQ_FORO_ENTRENAMIENTO.NEXTVAL, :prof_rut, :prof_nombre, :prof_rol, :mensaje, SYSDATE, :cliente_rut)`,
+            {
+              prof_rut: profesional.RUT,
+              prof_nombre: `${profesional.PRIMER_NOMBRE} ${profesional.PRIMER_APELLIDO}`,
+              prof_rol: tipoProfesional,
+              mensaje: `¡Hola! Soy tu ${tipoProfesional.toLowerCase()} asignado. ¡Estoy aquí para ayudarte a alcanzar tus objetivos con el plan de ${plan.nombre}! 💪`,
+              cliente_rut: usuario.rut
+            },
+            { autoCommit: false }
+          );
+        }
       }
     }
     
@@ -1737,7 +1957,7 @@ app.post("/api/procesar-compra-mixta", async (req, res) => {
     
     res.json({ 
       success: true, 
-      mensaje: "Compra procesada correctamente",
+      mensaje: "Compra procesada correctamente y chat automático creado",
       numeroTransaccion: numeroTransaccion,
       productos_procesados: productos?.length || 0,
       planes_procesados: planes?.length || 0
@@ -1750,4 +1970,14 @@ app.post("/api/procesar-compra-mixta", async (req, res) => {
   } finally {
     if (connection) await connection.close();
   }
+});
+
+// Iniciar el servidor
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`✅ Servidor backend iniciado correctamente en puerto ${PORT}`);
+  console.log(`🔗 URL: http://localhost:${PORT}`);
+  console.log(`📊 Dashboard: http://localhost:${PORT}/dashboard`);
+  console.log(`💬 Chat APIs: http://localhost:${PORT}/api/chat`);
+  console.log(`🚀 Sistema WhatsApp-style Chat listo para usar!`);
 });
